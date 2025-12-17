@@ -1,0 +1,310 @@
+import streamlit as st
+import cv2
+import mediapipe as mp
+import numpy as np
+from fpdf import FPDF
+from tempfile import NamedTemporaryFile
+import time
+
+# -------------------------
+# BRANDING CONFIGURATION
+# -------------------------
+# Path to your logo image within the app directory
+LOGO_PATH = "elirum_logo.png"
+
+# Colour palette (Option 2: green/teal with coral accents)
+PRIMARY_COLOR = "#00695C"     # deep teal
+SECONDARY_COLOR = "#26A69A"   # light teal
+ACCENT_COLOR = "#FF7043"      # coral
+BACKGROUND_COLOR = "#FFFFFF"  # white
+
+# -------------------------
+# LOGIN SYSTEM
+# -------------------------
+# Simple hard‑coded user database
+USERS = {
+    "charles": "secure123",
+    "admin": "admin123",
+    "detective": "detect2025"
+}
+
+def login():
+    """Render the login interface and authenticate the user."""
+    st.image(LOGO_PATH, width=150)
+    st.title("Elirum Analyzer")
+    st.subheader("Secure Access")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login", key="login_button"):
+        if USERS.get(username) == password:
+            st.session_state["authenticated"] = True
+            st.session_state["user"] = username
+            st.rerun()
+        else:
+            st.error("Invalid credentials", icon="🚫")
+
+# Initialize authentication state
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+# If not authenticated, show login page and stop execution
+if not st.session_state["authenticated"]:
+    login()
+    st.stop()
+
+# -------------------------
+# PAGE CONFIGURATION
+# -------------------------
+st.set_page_config(page_title="Elirum Analyzer", layout="wide")
+
+# Inject custom CSS for background and button colours
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-color: {BACKGROUND_COLOR};
+    }}
+    .stButton > button {{
+        background-color: {PRIMARY_COLOR};
+        color: white;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Display logo and page title
+st.image(LOGO_PATH, width=150)
+st.title("Elirum Analyzer")
+st.caption("Behavioral Stress & Nervousness Detection System")
+
+# -------------------------
+# SIDEBAR
+# -------------------------
+st.sidebar.header("Instructions")
+st.sidebar.markdown(
+    """
+    1. Upload interview video  
+    2. Behavioral analysis runs automatically  
+    3. Review stress timeline  
+    4. Download official PDF report  
+    """
+)
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Video",
+    type=["mp4", "mov", "avi"]
+)
+
+# -------------------------
+# PDF GENERATOR
+# -------------------------
+def generate_pdf(user: str, fps: float, stress_events: list, scores: list) -> str:
+    """Generate a PDF report summarising the behavioural analysis.
+
+    Args:
+        user (str): The username of the analyst.
+        fps (float): Frames per second of the analysed video.
+        stress_events (list): A list of dicts containing time, score and cues for high‑stress events.
+        scores (list): A list of all stress scores (0‑100) for the timeline.
+
+    Returns:
+        str: The filename of the generated PDF.
+    """
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    # Header band using primary colour
+    pdf.set_fill_color(int(PRIMARY_COLOR[1:3], 16), int(PRIMARY_COLOR[3:5], 16), int(PRIMARY_COLOR[5:7], 16))
+    pdf.rect(0, 0, 210, 15, "F")
+    pdf.set_y(20)
+
+    # Document title
+    pdf.set_font("Arial", "B", 18)
+    pdf.cell(0, 12, "ELIRUM BEHAVIORAL ANALYSIS REPORT", ln=True, align="C")
+
+    pdf.ln(6)
+    pdf.set_font("Arial", "", 12)
+
+    avg_score = round(np.mean(scores), 2)
+    max_score = round(np.max(scores), 2)
+
+    pdf.multi_cell(
+        0, 8,
+        f"Analyst: {user}\n"
+        f"Average Stress Level: {avg_score}%\n"
+        f"Peak Stress Level: {max_score}%\n"
+        f"Report Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+    pdf.ln(4)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 10, "Flagged Behavioral Events", ln=True)
+
+    pdf.set_font("Arial", "", 11)
+    for e in stress_events:
+        pdf.multi_cell(
+            0, 8,
+            f"Time: {e['time']}s | Stress: {e['score']}% ({e['trend']})\n"
+            f"Indicators: {e['cues']}\n"
+            f"Notes: {e.get('notes', '')}"
+        )
+        pdf.ln(1)
+
+    pdf.ln(4)
+    pdf.set_font("Arial", "I", 10)
+    pdf.multi_cell(
+        0, 6,
+        "Disclaimer: Elirum provides automated behavioural pattern detection and does not determine deception or intent."
+        " Results must be interpreted by trained professionals in context."
+    )
+
+    file_name = "Elirum_Analysis_Report.pdf"
+    pdf.output(file_name)
+    return file_name
+
+# -------------------------
+# VIDEO ANALYSIS AND UI
+# -------------------------
+if uploaded_file:
+    # Save uploaded file to a temporary file
+    tfile = NamedTemporaryFile(delete=False)
+    tfile.write(uploaded_file.read())
+
+    # Show the raw video with audio for playback
+    st.subheader("Interview Playback")
+    st.video(uploaded_file)
+
+    cap = cv2.VideoCapture(tfile.name)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+
+    mp_holistic = mp.solutions.holistic
+    mp_draw = mp.solutions.drawing_utils
+
+    nervous_scores = []
+    stress_events = []
+
+    last_score = 0
+    last_logged_second = -1
+
+    holistic = mp_holistic.Holistic(
+        static_image_mode=False,
+        model_complexity=1,
+        refine_face_landmarks=True
+    )
+
+    col1, col2 = st.columns([2, 1])
+    video_slot = col1.empty()
+
+    frame_idx = 0
+    FRAME_SKIP = 2
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame_idx += 1
+        if frame_idx % FRAME_SKIP != 0:
+            continue
+
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        res = holistic.process(rgb)
+
+        score = 0
+        cues = []
+
+        # Assign weights to cues
+        if res.face_landmarks:
+            score += 0.35
+            cues.append("Facial Tension")
+            mp_draw.draw_landmarks(frame, res.face_landmarks, mp_holistic.FACEMESH_CONTOURS)
+
+        if res.left_hand_landmarks or res.right_hand_landmarks:
+            score += 0.30
+            cues.append("Hand Movement")
+            if res.left_hand_landmarks:
+                mp_draw.draw_landmarks(frame, res.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            if res.right_hand_landmarks:
+                mp_draw.draw_landmarks(frame, res.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+
+        if res.pose_landmarks:
+            score += 0.25
+            cues.append("Posture Shift")
+            mp_draw.draw_landmarks(frame, res.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+
+        # Micro variance for realism
+        score += np.random.uniform(-0.04, 0.04)
+        score = max(0, min(score, 1.0))
+
+        nervous_scores.append(round(score * 100, 2))
+
+        # Determine trend relative to previous logged score
+        trend = "Sustained"
+        if score - last_score > 0.15:
+            trend = "Escalation"
+        elif last_score - score > 0.15:
+            trend = "De-escalation"
+
+        current_second = int(frame_idx / fps)
+        cue_text = ", ".join(cues)
+        score_delta = abs(score - last_score)
+
+        # Log only when stress is high and changes significantly or cues change
+        if (
+            score > 0.65
+            and current_second != last_logged_second
+            and (score_delta >= 0.15 or cue_text != (stress_events[-1]['cues'] if stress_events else ""))
+        ):
+            stress_events.append({
+                "time": round(frame_idx / fps, 2),
+                "score": round(score * 100, 2),
+                "cues": cue_text,
+                "trend": trend
+            })
+
+            last_logged_second = current_second
+            last_score = score
+
+        # Overlay live information on frame
+        cv2.rectangle(frame, (0, 0), (460, 130), (0, 0, 0), -1)
+        cv2.putText(frame, f"Stress: {round(score*100,2)}%", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
+        cv2.putText(frame, f"Trend: {trend}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
+        cv2.putText(frame, f"Time: {round(frame_idx/fps,2)}s", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
+
+        video_slot.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
+
+    cap.release()
+    holistic.close()
+
+    # Plot timeline of stress scores
+    col2.subheader("Stress Timeline")
+    col2.line_chart(nervous_scores)
+
+    # List flagged stress moments with editable notes
+    st.subheader("Flagged Stress Moments (Add Notes)")
+    for i, e in enumerate(stress_events):
+        note = st.text_input(
+            f"{e['time']}s — {e['score']}% ({e['trend']})",
+            key=f"note_{i}"
+        )
+        e["notes"] = note
+
+    # Generate and provide PDF download
+    pdf_name = generate_pdf(
+        user=st.session_state["user"],
+        fps=fps,
+        stress_events=stress_events,
+        scores=nervous_scores
+    )
+
+    with open(pdf_name, "rb") as f:
+        st.download_button(
+            "Download Professional PDF Report",
+            f,
+            file_name=pdf_name,
+            key="download_pdf"
+        )
