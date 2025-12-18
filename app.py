@@ -6,6 +6,9 @@ from fpdf import FPDF
 from tempfile import NamedTemporaryFile
 import time
 
+# Additional modules for styling and encoding assets
+import base64  # Used to embed the logo image directly in HTML
+
 # Add MediaPipe for facial mesh, pose skeleton and hand detection.  MediaPipe
 # enables lightweight, fast landmark detection for faces, full‑body pose and
 # hands.  These landmarks drive the red‑dot mesh over the face, the green
@@ -90,36 +93,146 @@ USERS = {
 }
 
 def show_landing_page():
-    """Render a branded landing page with business description and login form."""
-    # Header with logo on the left and login form on the right.
-    header_left, header_right = st.columns([3, 1])
-    with header_left:
-        st.image(LOGO_PATH, width=200)
-        st.title("Elirum Analyzer")
-        st.caption("Behavioral Stress & Nervousness Detection System")
-    with header_right:
-        st.subheader("Sign In")
-        username = st.text_input("Username", key="landing_username")
-        password = st.text_input("Password", type="password", key="landing_password")
-        if st.button("Login", key="landing_login_button"):
-            if USERS.get(username) == password:
-                st.session_state["authenticated"] = True
-                st.session_state["user"] = username
-                st.rerun()
-            else:
-                st.error("Invalid credentials", icon="🚫")
-    # Business description section
+    """Render a stylish landing page with a hero section and login option.
+
+    The landing page emulates the look and feel of premium SaaS websites by
+    featuring a dark navigation bar with your logo on the left and a login
+    link on the right.  Below the nav bar, a hero section presents a bold
+    statement about your product along with a supporting tagline.  A sign‑in
+    form is provided below the hero section for users to authenticate and
+    access the analysis dashboard.  Business information appears at the
+    bottom of the page.
+    """
+    # Encode the logo file as Base64 to embed directly in the HTML.  This avoids
+    # layout jumps while the image is loading and allows CSS to style it
+    # consistently across devices.
+    try:
+        with open(LOGO_PATH, "rb") as logo_file:
+            logo_data = base64.b64encode(logo_file.read()).decode("utf-8")
+    except FileNotFoundError:
+        logo_data = ""
+
+    # Build the top navigation bar and hero section using raw HTML and CSS.
+    # The hero uses a dark gradient background to echo the reference design
+    # provided by the user.  Inline styles are used here because Streamlit
+    # sanitises external CSS by default.  The login link anchors to the
+    # sign‑in form further down the page.
+    st.markdown(
+        f"""
+        <style>
+            /* Reset default margins and padding */
+            body, html {{ margin: 0; padding: 0; }}
+
+            /* Navigation bar styling */
+            .nav-bar {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem 2rem;
+                background-color: black;
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+            }}
+            .nav-bar img {{
+                height: 40px;
+            }}
+            .nav-bar a {{
+                color: white;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 1rem;
+            }}
+
+            /* Hero section styling */
+            .hero {{
+                background-color: black;
+                background-image: radial-gradient(circle at top left, rgba(0, 122, 132, 0.7), rgba(0,0,0,0.9));
+                color: white;
+                padding: 6rem 2rem;
+                text-align: left;
+            }}
+            .hero-title {{
+                font-size: 3rem;
+                font-weight: 700;
+                margin-bottom: 1rem;
+                line-height: 1.2;
+            }}
+            .hero-subtitle {{
+                font-size: 1.2rem;
+                line-height: 1.5;
+                max-width: 600px;
+            }}
+            /* Sign in form container */
+            .sign-in-container {{
+                margin: 3rem auto;
+                max-width: 400px;
+                padding: 2rem;
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }}
+            .sign-in-container h2 {{
+                margin-top: 0;
+                margin-bottom: 1rem;
+                color: #333;
+            }}
+            /* Business description styling */
+            .business-info {{
+                max-width: 800px;
+                margin: 2rem auto;
+                padding: 0 2rem;
+            }}
+        </style>
+        <div class="nav-bar">
+            <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" />
+            <a href="#login-section">Login</a>
+        </div>
+        <div class="hero">
+            <div class="hero-title">Protect more lives in more places</div>
+            <div class="hero-subtitle">Experience the leading operating system for behavioural stress analysis.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Sign‑in form section.  Using Streamlit input widgets outside of the raw
+    # HTML ensures proper integration with the app state.  The container ID
+    # allows the nav bar link to anchor correctly.
+    st.markdown("<div id='login-section'></div>", unsafe_allow_html=True)
+    with st.container():
+        st.write("\n")  # Add spacing to separate from the hero
+        with st.form(key="landing_login_form"):
+            st.subheader("Sign In")
+            username = st.text_input("Username", key="landing_username")
+            password = st.text_input("Password", type="password", key="landing_password")
+            submitted = st.form_submit_button("Login")
+            if submitted:
+                if USERS.get(username) == password:
+                    st.session_state["authenticated"] = True
+                    st.session_state["user"] = username
+                    st.experimental_rerun()
+                else:
+                    st.error("Invalid credentials", icon="🚫")
+
+    # Business description section displayed underneath the login form
     st.markdown(
         """
-        ## About Elirum
-        Elirum is a cutting‑edge analytics platform that harnesses advanced computer
-        vision algorithms to detect stress, nervousness and behavioural cues during
-        interviews. By analysing subtle facial expressions and body language, Elirum
-        helps recruiters make more informed, data‑driven decisions while giving
-        candidates constructive feedback. Upload your interview video to generate a
-        comprehensive stress timeline, view flagged moments and download a
-        professional report—all within a sleek, modern interface.
-        """
+        <div class="business-info">
+            <h2>About Elirum</h2>
+            <p>
+                Elirum is a cutting‑edge analytics platform that harnesses advanced
+                computer vision algorithms to detect stress, nervousness and behavioural
+                cues during interviews. By analysing subtle facial expressions and
+                body language, Elirum helps recruiters make more informed, data‑driven
+                decisions while giving candidates constructive feedback. Upload
+                your interview video to generate a comprehensive stress timeline, view
+                flagged moments and download a professional report—all within a
+                sleek, modern interface.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 # Initialize authentication state
