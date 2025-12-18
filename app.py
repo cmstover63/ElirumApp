@@ -263,12 +263,20 @@ if uploaded_file:
     # progress bar updates.
     total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT) or 1
 
-    # Allow the analyst to adjust the frame skipping rate via the sidebar.
-    # Higher values skip more frames and run faster at the cost of temporal
-    # resolution.  Default remains 3, matching the original behaviour.
-    FRAME_SKIP = st.sidebar.slider(
-        "Frame Skip (higher = faster)", min_value=1, max_value=10, value=3
-    )
+    # Set fixed parameters for processing speed and quality.  The analysis
+    # pipeline will process every second frame and downscale the video to
+    # 50 % of its original resolution before running detection.  These
+    # constants strike a balance between speed and accuracy without
+    # requiring user input.
+    FRAME_SKIP = 3  # analyse every 3rd frame
+    processing_scale = 0.5  # process at half resolution
+
+    # Always display the face mesh, pose skeleton and hand connections if
+    # available.  Hiding the overlay options ensures a consistent
+    # appearance without requiring the user to adjust settings.
+    show_face_mesh = True
+    show_pose = True
+    show_hands = True
 
     # Add a progress bar to the sidebar so the user can see analysis progress
     progress_bar = st.sidebar.progress(0)
@@ -307,8 +315,9 @@ if uploaded_file:
     nervous_scores = []
     stress_events = []
 
-    # Previous frame for motion detection (initially None)
-    prev_gray = None
+    # Previous frame for motion detection (initially None).  We store
+    # the greyscale downscaled frame here to compare motion across frames.
+    prev_gray_small = None
 
     # Track the previous face centre to estimate gaze shifts.  A large
     # horizontal movement of the face centre between frames will be
@@ -342,19 +351,26 @@ if uploaded_file:
         if frame_idx % FRAME_SKIP != 0:
             continue
 
-        # Convert current frame to grayscale for motion detection and to RGB
-        # for MediaPipe processing.  The grayscale image remains for
-        # movement intensity calculations, while the RGB version feeds the
-        # face, pose and hand models.
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # Downscale the frame before processing.  Shrinking the frame
+        # substantially reduces computation for motion detection and
+        # landmark estimation.  The processed landmarks are later mapped
+        # back to the original frame dimensions for drawing.  We also
+        # prepare both greyscale and RGB versions of the downscaled frame.
+        frame_small = cv2.resize(
+            frame,
+            (0, 0),
+            fx=processing_scale,
+            fy=processing_scale,
+        )
+        gray_small = cv2.cvtColor(frame_small, cv2.COLOR_BGR2GRAY)
+        rgb_small = cv2.cvtColor(frame_small, cv2.COLOR_BGR2RGB)
 
         score = 0.0
         cues = []
 
-        if prev_gray is not None:
+        if prev_gray_small is not None:
             # Compute absolute difference between current frame and previous frame
-            diff = cv2.absdiff(gray, prev_gray)
+            diff = cv2.absdiff(gray_small, prev_gray_small)
             # Calculate average pixel intensity of the difference as a proxy for motion
             movement_intensity = np.mean(diff)
             # Normalise movement_intensity to [0, 1] range; adjust divisor for sensitivity
@@ -449,50 +465,67 @@ if uploaded_file:
             )
             y_offset += 20
 
-        # Draw face, pose and hand landmarks using MediaPipe when available.
-        # If MediaPipe is not available, fall back to the Haar cascade for
-        # estimating gaze shift and draw a simple grid of dots over the face.
-        if mp is not None and face_mesh is not None:
-            face_results = face_mesh.process(rgb)
-            if face_results.multi_face_landmarks:
-                for face_landmarks in face_results.multi_face_landmarks:
-                    # Face centre for gaze shift: use the nose tip landmark (index 1)
-                    nose = face_landmarks.landmark[1]
-                    face_center = (int(nose.x * frame.shape[1]), int(nose.y * frame.shape[0]))
+        # Draw face, pose and hand landmarks only if requested via the sidebar
+        # and when MediaPipe is available.  When any overlay is disabled, skip
+        # the corresponding detection to reduce computation.
+        if show_face_mesh:
+            if mp is not None and face_mesh is not None:
+                face_results = face_mesh.process(rgb_small)
+                if face_results.multi_face_landmarks:
+                    for face_landmarks in face_results.multi_face_landmarks:
+                        # Face centre for gaze shift: use the nose tip landmark (index 1)
+                        nose = face_landmarks.landmark[1]
+                        face_center = (
+                            int(nose.x * frame.shape[1]),
+                            int(nose.y * frame.shape[0]),
+                        )
+                        if prev_face_center is not None:
+                            dx = abs(face_center[0] - prev_face_center[0])
+                            # Use approx face width based on inter‑eye distance
+                            eye_distance = abs(
+                                face_landmarks.landmark[33].x
+                                - face_landmarks.landmark[263].x
+                            )
+                            if eye_distance > 0:
+                                if dx > 0.15 * eye_distance * frame.shape[1]:
+                                    cues.append("Gaze Shift")
+                        prev_face_center = face_center
+                        # Draw small red dots at every facial landmark.  A radius of 1
+                        # produces a fine mesh resembling the old MediaPipe display.
+                        for lm in face_landmarks.landmark:
+                            px = int(lm.x * frame.shape[1])
+                            py = int(lm.y * frame.shape[0])
+                            cv2.circle(frame, (px, py), 1, (0, 0, 255), -1)
+            elif show_face_mesh:
+                # Haar cascade fallback: draw coarse mesh on detected faces.  Run on
+                # the downscaled grayscale frame and scale coordinates up to the
+                # original frame for drawing.
+                faces_small = face_cascade.detectMultiScale(
+                    gray_small, scaleFactor=1.1, minNeighbors=5
+                )
+                for (x_s, y_s, w_s, h_s) in faces_small:
+                    # Map the bounding box from the downscaled image back to
+                    # original frame coordinates.
+                    x = int(x_s / processing_scale)
+                    y = int(y_s / processing_scale)
+                    w = int(w_s / processing_scale)
+                    h = int(h_s / processing_scale)
+                    face_center = (x + w // 2, y + h // 2)
                     if prev_face_center is not None:
                         dx = abs(face_center[0] - prev_face_center[0])
-                        # Use approx face width based on inter‑eye distance
-                        eye_distance = abs(face_landmarks.landmark[33].x - face_landmarks.landmark[263].x)
-                        if eye_distance > 0:
-                            if dx > 0.15 * eye_distance * frame.shape[1]:
-                                cues.append("Gaze Shift")
+                        if dx > 0.15 * w:
+                            cues.append("Gaze Shift")
                     prev_face_center = face_center
-                    # Draw small red dots at every facial landmark.  A radius of 1
-                    # produces a fine mesh resembling the old MediaPipe display.
-                    for lm in face_landmarks.landmark:
-                        px = int(lm.x * frame.shape[1])
-                        py = int(lm.y * frame.shape[0])
-                        cv2.circle(frame, (px, py), 1, (0, 0, 255), -1)
-        else:
-            # Haar cascade fallback: draw coarse mesh on detected faces
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-            for (x, y, w, h) in faces:
-                face_center = (x + w // 2, y + h // 2)
-                if prev_face_center is not None:
-                    dx = abs(face_center[0] - prev_face_center[0])
-                    if dx > 0.15 * w:
-                        cues.append("Gaze Shift")
-                prev_face_center = face_center
-                grid_size = 10
-                for i in range(1, grid_size + 1):
-                    for j in range(1, grid_size + 1):
-                        px = int(x + w * i / (grid_size + 1))
-                        py = int(y + h * j / (grid_size + 1))
-                        cv2.circle(frame, (px, py), 2, (0, 0, 255), -1)
+                    grid_size = 10
+                    for i in range(1, grid_size + 1):
+                        for j in range(1, grid_size + 1):
+                            px = int(x + w * i / (grid_size + 1))
+                            py = int(y + h * j / (grid_size + 1))
+                            cv2.circle(frame, (px, py), 2, (0, 0, 255), -1)
 
         # Pose skeleton drawing using MediaPipe
-        if mp is not None and pose is not None:
-            pose_results = pose.process(rgb)
+        if show_pose and mp is not None and pose is not None:
+            pose_results = pose.process(rgb_small)
             if pose_results.pose_landmarks:
                 lms = pose_results.pose_landmarks.landmark
                 # Iterate over default POSE_CONNECTIONS to draw lines.  Use green
@@ -506,8 +539,8 @@ if uploaded_file:
                     cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
         # Hand connections drawing using MediaPipe
-        if mp is not None and hands is not None:
-            hands_results = hands.process(rgb)
+        if show_hands and mp is not None and hands is not None:
+            hands_results = hands.process(rgb_small)
             if hands_results.multi_hand_landmarks:
                 for hand_landmarks in hands_results.multi_hand_landmarks:
                     # Draw the hand connections using the predefined connections.  Use
@@ -523,8 +556,8 @@ if uploaded_file:
         # Show the processed frame with overlays in the UI
         video_slot.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
 
-        # Update previous frame for next iteration
-        prev_gray = gray
+        # Update previous downscaled frame for next iteration
+        prev_gray_small = gray_small
 
     cap.release()
 
