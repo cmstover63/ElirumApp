@@ -9,10 +9,19 @@ import time
 # enables lightweight, fast landmark detection for faces, full‑body pose and
 # hands.  These landmarks drive the red‑dot mesh over the face, the green
 # skeletal lines down the body and the blue connections across hands.
+# Attempt to import MediaPipe and ensure the ``solutions`` module exists.  Some
+# lightweight or stub packages named ``mediapipe`` do not expose the
+# ``solutions`` attribute, which leads to runtime errors.  If either the
+# import fails or the attribute is missing, ``mp`` is set to ``None`` so
+# that the application falls back to OpenCV‑based overlays.
 try:
     import mediapipe as mp  # type: ignore
-except ImportError:
-    mp = None  # MediaPipe will be installed in the deployment environment
+    # Verify that the expected submodule is present.  If not, trigger the
+    # AttributeError handler below.
+    if not hasattr(mp, "solutions"):
+        raise AttributeError("mediapipe.solutions missing")
+except (ImportError, AttributeError):
+    mp = None
 
 # -------------------------
 # LANDMARK MODELS
