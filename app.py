@@ -1,10 +1,28 @@
 import streamlit as st
 import cv2
-import mediapipe as mp
+"""
+The application previously relied on MediaPipe's Holistic solution to detect facial,
+hand and pose landmarks. However, MediaPipe is not yet compatible with Python 3.13
+on Streamlit Cloud, and the `mediapipe.solutions` API has been removed in recent
+versions. To avoid this compatibility issue, Elirum now uses a simpler motion
+detection approach based on frame differencing with OpenCV. This technique
+measures movement intensity between consecutive frames and uses that as a proxy
+for stress level. Cues (facial tension, hand movement, posture shift) are
+derived heuristically from the magnitude of the motion.
+"""
 import numpy as np
 from fpdf import FPDF
 from tempfile import NamedTemporaryFile
 import time
+
+# -------------------------
+# NOTE ON MEDIAPIPE REMOVAL
+# -------------------------
+# MediaPipe has been removed from this application because it does not support
+# Python 3.13 (the version used by Streamlit Cloud) and the older API used in
+# the original version (`mp.solutions.holistic`) has been deprecated. The
+# behavioural analysis now uses a simple motion detection technique implemented
+# purely with OpenCV. See the video analysis loop below for details.
 
 # -------------------------
 # BRANDING CONFIGURATION
@@ -181,26 +199,23 @@ if uploaded_file:
     cap = cv2.VideoCapture(tfile.name)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
-    mp_holistic = mp.solutions.holistic
-    mp_draw = mp.solutions.drawing_utils
-
+    # Initialise data structures for motion‑based analysis
     nervous_scores = []
     stress_events = []
 
-    last_score = 0
-    last_logged_second = -1
+    # Previous frame for motion detection (initially None)
+    prev_gray = None
 
-    holistic = mp_holistic.Holistic(
-        static_image_mode=False,
-        model_complexity=1,
-        refine_face_landmarks=True
-    )
+    # Variables to determine trend changes
+    last_score = 0.0
+    last_logged_second = -1
+    last_logged_cues = ""
 
     col1, col2 = st.columns([2, 1])
     video_slot = col1.empty()
 
     frame_idx = 0
-    FRAME_SKIP = 2
+    FRAME_SKIP = 2  # Skip frames for performance
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -208,37 +223,35 @@ if uploaded_file:
             break
 
         frame_idx += 1
+        # Skip frames to reduce processing load
         if frame_idx % FRAME_SKIP != 0:
             continue
 
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        res = holistic.process(rgb)
+        # Convert current frame to grayscale for motion detection
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        score = 0
+        score = 0.0
         cues = []
 
-        # Assign weights to cues
-        if res.face_landmarks:
-            score += 0.35
-            cues.append("Facial Tension")
-            mp_draw.draw_landmarks(frame, res.face_landmarks, mp_holistic.FACEMESH_CONTOURS)
+        if prev_gray is not None:
+            # Compute absolute difference between current frame and previous frame
+            diff = cv2.absdiff(gray, prev_gray)
+            # Calculate average pixel intensity of the difference as a proxy for motion
+            movement_intensity = np.mean(diff)
+            # Normalise movement_intensity to [0, 1] range; adjust divisor for sensitivity
+            score = min(max(movement_intensity / 30.0, 0.0), 1.0)
 
-        if res.left_hand_landmarks or res.right_hand_landmarks:
-            score += 0.30
-            cues.append("Hand Movement")
-            if res.left_hand_landmarks:
-                mp_draw.draw_landmarks(frame, res.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-            if res.right_hand_landmarks:
-                mp_draw.draw_landmarks(frame, res.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            # Derive cues based on movement intensity
+            if movement_intensity > 25:
+                cues.append("Posture Shift")
+            elif movement_intensity > 15:
+                cues.append("Hand Movement")
+            elif movement_intensity > 5:
+                cues.append("Facial Tension")
 
-        if res.pose_landmarks:
-            score += 0.25
-            cues.append("Posture Shift")
-            mp_draw.draw_landmarks(frame, res.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-
-        # Micro variance for realism
-        score += np.random.uniform(-0.04, 0.04)
-        score = max(0, min(score, 1.0))
+        # Add a small random fluctuation for realism
+        score += np.random.uniform(-0.02, 0.02)
+        score = max(0.0, min(score, 1.0))
 
         nervous_scores.append(round(score * 100, 2))
 
@@ -250,14 +263,14 @@ if uploaded_file:
             trend = "De-escalation"
 
         current_second = int(frame_idx / fps)
-        cue_text = ", ".join(cues)
+        cue_text = ", ".join(cues) if cues else ""
         score_delta = abs(score - last_score)
 
         # Log only when stress is high and changes significantly or cues change
         if (
             score > 0.65
             and current_second != last_logged_second
-            and (score_delta >= 0.15 or cue_text != (stress_events[-1]['cues'] if stress_events else ""))
+            and (score_delta >= 0.15 or cue_text != last_logged_cues)
         ):
             stress_events.append({
                 "time": round(frame_idx / fps, 2),
@@ -268,6 +281,7 @@ if uploaded_file:
 
             last_logged_second = current_second
             last_score = score
+            last_logged_cues = cue_text
 
         # Overlay live information on frame
         cv2.rectangle(frame, (0, 0), (460, 130), (0, 0, 0), -1)
@@ -275,10 +289,13 @@ if uploaded_file:
         cv2.putText(frame, f"Trend: {trend}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
         cv2.putText(frame, f"Time: {round(frame_idx/fps,2)}s", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
 
+        # Show the processed frame in the UI
         video_slot.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
 
+        # Update previous frame for next iteration
+        prev_gray = gray
+
     cap.release()
-    holistic.close()
 
     # Plot timeline of stress scores
     col2.subheader("Stress Timeline")
