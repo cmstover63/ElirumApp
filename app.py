@@ -5,19 +5,43 @@ from fpdf import FPDF
 from tempfile import NamedTemporaryFile
 import time
 
-# -------------------------
-# CASCADE MODELS
-# -------------------------
-# Load Haar cascade models for face and body detection. OpenCV installs the cascade
-# files with the Python package, and the paths are accessible via ``cv2.data.haarcascades``.
-# These models enable simple rectangle detection around faces and full bodies without
-# requiring the MediaPipe library. If the body cascade fails to load, the app
-# gracefully disables body detection.
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Add MediaPipe for facial mesh, pose skeleton and hand detection.  MediaPipe
+# enables lightweight, fast landmark detection for faces, full‑body pose and
+# hands.  These landmarks drive the red‑dot mesh over the face, the green
+# skeletal lines down the body and the blue connections across hands.
 try:
-    body_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_fullbody.xml')
-except Exception:
-    body_cascade = None
+    import mediapipe as mp  # type: ignore
+except ImportError:
+    mp = None  # MediaPipe will be installed in the deployment environment
+
+# -------------------------
+# LANDMARK MODELS
+# -------------------------
+# MediaPipe models are used for face, pose and hand landmark detection.  They
+# provide detailed meshes and skeleton connections with minimal overhead.  The
+# Haar cascade models remain available as a fallback for gaze shift estimation,
+# but all drawing is now driven by MediaPipe landmarks.
+
+# Load Haar cascade model for optional gaze shift detection.  OpenCV installs
+# the cascade files with the Python package, and the paths are accessible via
+# ``cv2.data.haarcascades``.  This cascade is only used to estimate face
+# bounding boxes for computing gaze direction; the visual overlay comes from
+# MediaPipe landmarks.
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+if mp is not None:
+    # Initialise MediaPipe solutions.  Refinement on the face mesh adds iris
+    # landmarks which improve the appearance of the mesh.  The pose and hand
+    # solutions run in streaming mode for performance.  Note that MediaPipe
+    # context creation is deferred until a video is loaded to avoid
+    # unnecessary resource allocation when the app starts.
+    mp_face_mesh = mp.solutions.face_mesh
+    mp_pose = mp.solutions.pose
+    mp_hands = mp.solutions.hands
+else:
+    mp_face_mesh = None
+    mp_pose = None
+    mp_hands = None
 
 # -------------------------
 # NOTE
@@ -221,6 +245,36 @@ if uploaded_file:
     cap = cv2.VideoCapture(tfile.name)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
+    # Instantiate MediaPipe models if available.  Creating these objects
+    # inside the file upload block avoids allocating GPU/CPU resources when
+    # the application is idle.  Each solution is configured for live
+    # streaming with a single face and up to two hands.
+    if mp is not None:
+        face_mesh = mp_face_mesh.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+        pose = mp_pose.Pose(
+            static_image_mode=False,
+            model_complexity=1,
+            enable_segmentation=False,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+        hands = mp_hands.Hands(
+            static_image_mode=False,
+            max_num_hands=2,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+    else:
+        face_mesh = None
+        pose = None
+        hands = None
+
     # Initialise data structures for motion‑based analysis
     nervous_scores = []
     stress_events = []
@@ -242,7 +296,9 @@ if uploaded_file:
     video_slot = col1.empty()
 
     frame_idx = 0
-    FRAME_SKIP = 2  # Skip frames for performance
+    # Skip more frames to speed up processing when using MediaPipe.  A value
+    # of 3 reduces CPU load by roughly 33% compared to analysing every frame.
+    FRAME_SKIP = 3
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -254,8 +310,12 @@ if uploaded_file:
         if frame_idx % FRAME_SKIP != 0:
             continue
 
-        # Convert current frame to grayscale for motion detection
+        # Convert current frame to grayscale for motion detection and to RGB
+        # for MediaPipe processing.  The grayscale image remains for
+        # movement intensity calculations, while the RGB version feeds the
+        # face, pose and hand models.
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         score = 0.0
         cues = []
@@ -357,50 +417,76 @@ if uploaded_file:
             )
             y_offset += 20
 
-        # Draw face landmarks as small red dots instead of full bounding boxes.  These
-        # points approximate the old MediaPipe face mesh by placing dots at the centre
-        # and quarter positions of the detected face rectangle.  Using small circles
-        # avoids drawing large boxes while still indicating that a face was detected.
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-        for (x, y, w, h) in faces:
-            # Compute face centre for gaze detection
-            face_center = (x + w // 2, y + h // 2)
-            # If a previous face centre exists, compare horizontal movement
-            # relative to face width.  If it exceeds 15% of the face width,
-            # interpret as a gaze shift (subject looking away).
-            if prev_face_center is not None:
-                dx = abs(face_center[0] - prev_face_center[0])
-                if dx > 0.15 * w:
-                    cues.append("Gaze Shift")
-            # Update previous face centre for next iteration
-            prev_face_center = face_center
+        # Draw face, pose and hand landmarks using MediaPipe when available.
+        # If MediaPipe is not available, fall back to the Haar cascade for
+        # estimating gaze shift and draw a simple grid of dots over the face.
+        if mp is not None and face_mesh is not None:
+            face_results = face_mesh.process(rgb)
+            if face_results.multi_face_landmarks:
+                for face_landmarks in face_results.multi_face_landmarks:
+                    # Face centre for gaze shift: use the nose tip landmark (index 1)
+                    nose = face_landmarks.landmark[1]
+                    face_center = (int(nose.x * frame.shape[1]), int(nose.y * frame.shape[0]))
+                    if prev_face_center is not None:
+                        dx = abs(face_center[0] - prev_face_center[0])
+                        # Use approx face width based on inter‑eye distance
+                        eye_distance = abs(face_landmarks.landmark[33].x - face_landmarks.landmark[263].x)
+                        if eye_distance > 0:
+                            if dx > 0.15 * eye_distance * frame.shape[1]:
+                                cues.append("Gaze Shift")
+                    prev_face_center = face_center
+                    # Draw small red dots at every facial landmark.  A radius of 1
+                    # produces a fine mesh resembling the old MediaPipe display.
+                    for lm in face_landmarks.landmark:
+                        px = int(lm.x * frame.shape[1])
+                        py = int(lm.y * frame.shape[0])
+                        cv2.circle(frame, (px, py), 1, (0, 0, 255), -1)
+        else:
+            # Haar cascade fallback: draw coarse mesh on detected faces
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+            for (x, y, w, h) in faces:
+                face_center = (x + w // 2, y + h // 2)
+                if prev_face_center is not None:
+                    dx = abs(face_center[0] - prev_face_center[0])
+                    if dx > 0.15 * w:
+                        cues.append("Gaze Shift")
+                prev_face_center = face_center
+                grid_size = 10
+                for i in range(1, grid_size + 1):
+                    for j in range(1, grid_size + 1):
+                        px = int(x + w * i / (grid_size + 1))
+                        py = int(y + h * j / (grid_size + 1))
+                        cv2.circle(frame, (px, py), 2, (0, 0, 255), -1)
 
-            # Draw a grid of small red dots across the face rectangle to
-            # approximate a full mesh.  The grid size controls density.
-            # Increase the density of the facial mesh by using a larger grid.
-            grid_size = 10
-            for i in range(1, grid_size + 1):
-                for j in range(1, grid_size + 1):
-                    px = int(x + w * i / (grid_size + 1))
-                    py = int(y + h * j / (grid_size + 1))
-                    cv2.circle(frame, (px, py), 2, (0, 0, 255), -1)
+        # Pose skeleton drawing using MediaPipe
+        if mp is not None and pose is not None:
+            pose_results = pose.process(rgb)
+            if pose_results.pose_landmarks:
+                lms = pose_results.pose_landmarks.landmark
+                # Iterate over default POSE_CONNECTIONS to draw lines.  Use green
+                # colour for body skeleton lines.
+                for connection in mp_pose.POSE_CONNECTIONS:
+                    start_idx, end_idx = connection
+                    p1 = lms[start_idx.value]
+                    p2 = lms[end_idx.value]
+                    x1, y1 = int(p1.x * frame.shape[1]), int(p1.y * frame.shape[0])
+                    x2, y2 = int(p2.x * frame.shape[1]), int(p2.y * frame.shape[0])
+                    cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-        # Draw body outline as a rectangle and fill it with a grid of red dots.
-        # The grid across the body bounding box approximates a skeletal mesh and
-        # mimics the landmark display from previous versions.  If the body
-        # cascade fails to load (body_cascade is None), this section is skipped.
-        if body_cascade is not None:
-            bodies = body_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-            for (bx, by, bw, bh) in bodies:
-                # Draw blue rectangle for the body outline
-                cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), (255, 0, 0), 2)
-                # Populate the body rectangle with red dots using a modest grid size.
-                body_grid = 5
-                for i in range(1, body_grid + 1):
-                    for j in range(1, body_grid + 1):
-                        px = int(bx + bw * i / (body_grid + 1))
-                        py = int(by + bh * j / (body_grid + 1))
-                        cv2.circle(frame, (px, py), 3, (0, 0, 255), -1)
+        # Hand connections drawing using MediaPipe
+        if mp is not None and hands is not None:
+            hands_results = hands.process(rgb)
+            if hands_results.multi_hand_landmarks:
+                for hand_landmarks in hands_results.multi_hand_landmarks:
+                    # Draw the hand connections using the predefined connections.  Use
+                    # blue colour for hand skeleton lines.
+                    for connection in mp_hands.HAND_CONNECTIONS:
+                        start_idx, end_idx = connection
+                        p1 = hand_landmarks.landmark[start_idx]
+                        p2 = hand_landmarks.landmark[end_idx]
+                        x1, y1 = int(p1.x * frame.shape[1]), int(p1.y * frame.shape[0])
+                        x2, y2 = int(p2.x * frame.shape[1]), int(p2.y * frame.shape[0])
+                        cv2.line(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
         # Show the processed frame with overlays in the UI
         video_slot.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
