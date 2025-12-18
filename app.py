@@ -1,15 +1,5 @@
 import streamlit as st
 import cv2
-"""
-The application previously relied on MediaPipe's Holistic solution to detect facial,
-hand and pose landmarks. However, MediaPipe is not yet compatible with Python 3.13
-on Streamlit Cloud, and the `mediapipe.solutions` API has been removed in recent
-versions. To avoid this compatibility issue, Elirum now uses a simpler motion
-detection approach based on frame differencing with OpenCV. This technique
-measures movement intensity between consecutive frames and uses that as a proxy
-for stress level. Cues (facial tension, hand movement, posture shift) are
-derived heuristically from the magnitude of the motion.
-"""
 import numpy as np
 from fpdf import FPDF
 from tempfile import NamedTemporaryFile
@@ -30,13 +20,12 @@ except Exception:
     body_cascade = None
 
 # -------------------------
-# NOTE ON MEDIAPIPE REMOVAL
+# NOTE
 # -------------------------
-# MediaPipe has been removed from this application because it does not support
-# Python 3.13 (the version used by Streamlit Cloud) and the older API used in
-# the original version (`mp.solutions.holistic`) has been deprecated. The
-# behavioural analysis now uses a simple motion detection technique implemented
-# purely with OpenCV. See the video analysis loop below for details.
+# This application implements behavioural analysis using OpenCV without relying
+# on MediaPipe. A combination of motion detection and Haar‑cascade based face
+# and body detection provides stress cues and live overlays.  See the video
+# analysis loop for implementation details.
 
 # -------------------------
 # BRANDING CONFIGURATION
@@ -220,6 +209,11 @@ if uploaded_file:
     # Previous frame for motion detection (initially None)
     prev_gray = None
 
+    # Track the previous face centre to estimate gaze shifts.  A large
+    # horizontal movement of the face centre between frames will be
+    # interpreted as the subject looking off centre ("Gaze Shift").
+    prev_face_center = None
+
     # Variables to determine trend changes
     last_score = 0.0
     last_logged_second = -1
@@ -255,11 +249,12 @@ if uploaded_file:
             # Normalise movement_intensity to [0, 1] range; adjust divisor for sensitivity
             score = min(max(movement_intensity / 30.0, 0.0), 1.0)
 
-            # Derive cues based on movement intensity
+            # Derive cues based on movement intensity.  Larger differences
+            # correspond to bigger body movements and are labelled accordingly.
             if movement_intensity > 25:
                 cues.append("Posture Shift")
             elif movement_intensity > 15:
-                cues.append("Hand Movement")
+                cues.append("Hand Fidget")
             elif movement_intensity > 5:
                 cues.append("Facial Tension")
 
@@ -297,11 +292,51 @@ if uploaded_file:
             last_score = score
             last_logged_cues = cue_text
 
-        # Overlay live information on frame
-        cv2.rectangle(frame, (0, 0), (460, 130), (0, 0, 0), -1)
-        cv2.putText(frame, f"Stress: {round(score*100,2)}%", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
-        cv2.putText(frame, f"Trend: {trend}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
-        cv2.putText(frame, f"Time: {round(frame_idx/fps,2)}s", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
+        # Overlay live information on frame.  The black rectangle at the top
+        # provides space for stress level, trend, timestamp and current cues.  A
+        # larger height accommodates multiple cues without overlapping text.
+        overlay_height = 150  # static height to allow a few cue lines
+        cv2.rectangle(frame, (0, 0), (460, overlay_height), (0, 0, 0), -1)
+        cv2.putText(
+            frame,
+            f"Stress: {round(score * 100, 2)}%",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 255),
+            2,
+        )
+        cv2.putText(
+            frame,
+            f"Trend: {trend}",
+            (10, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (200, 200, 200),
+            2,
+        )
+        cv2.putText(
+            frame,
+            f"Time: {round(frame_idx / fps, 2)}s",
+            (10, 90),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (200, 200, 200),
+            2,
+        )
+        # Display the detected cues (e.g. Gaze Shift, Hand Fidget) beneath the time
+        y_offset = 120
+        for cue in cues:
+            cv2.putText(
+                frame,
+                cue,
+                (10, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 0),
+                2,
+            )
+            y_offset += 20
 
         # Draw face landmarks as small red dots instead of full bounding boxes.  These
         # points approximate the old MediaPipe face mesh by placing dots at the centre
@@ -309,37 +344,44 @@ if uploaded_file:
         # avoids drawing large boxes while still indicating that a face was detected.
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
         for (x, y, w, h) in faces:
-            # positions for red dots: centre and the four quadrant midpoints
-            positions = [
-                (x + w // 2, y + h // 2),                   # centre
-                (x + w // 4, y + h // 4),                   # top‑left quadrant
-                (x + 3 * w // 4, y + h // 4),               # top‑right quadrant
-                (x + w // 4, y + 3 * h // 4),               # bottom‑left quadrant
-                (x + 3 * w // 4, y + 3 * h // 4)            # bottom‑right quadrant
-            ]
-            for (px, py) in positions:
-                cv2.circle(frame, (px, py), 3, (0, 0, 255), -1)
+            # Compute face centre for gaze detection
+            face_center = (x + w // 2, y + h // 2)
+            # If a previous face centre exists, compare horizontal movement
+            # relative to face width.  If it exceeds 15% of the face width,
+            # interpret as a gaze shift (subject looking away).
+            if prev_face_center is not None:
+                dx = abs(face_center[0] - prev_face_center[0])
+                if dx > 0.15 * w:
+                    cues.append("Gaze Shift")
+            # Update previous face centre for next iteration
+            prev_face_center = face_center
 
-        # Draw body outline as a rectangle with red dots indicating key positions.
-        # If the body classifier is available, draw the bounding box in blue and
-        # highlight the centre and midpoints of each side with red dots to mimic
-        # body landmarks from the old version.
+            # Draw a grid of small red dots across the face rectangle to
+            # approximate a full mesh.  The grid size controls density.
+            # Increase the density of the facial mesh by using a larger grid.
+            grid_size = 10
+            for i in range(1, grid_size + 1):
+                for j in range(1, grid_size + 1):
+                    px = int(x + w * i / (grid_size + 1))
+                    py = int(y + h * j / (grid_size + 1))
+                    cv2.circle(frame, (px, py), 2, (0, 0, 255), -1)
+
+        # Draw body outline as a rectangle and fill it with a grid of red dots.
+        # The grid across the body bounding box approximates a skeletal mesh and
+        # mimics the landmark display from previous versions.  If the body
+        # cascade fails to load (body_cascade is None), this section is skipped.
         if body_cascade is not None:
             bodies = body_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-            for (x, y, w, h) in bodies:
+            for (bx, by, bw, bh) in bodies:
                 # Draw blue rectangle for the body outline
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-                # Define positions for red dots: top‑middle, right‑middle, bottom‑middle,
-                # left‑middle, and centre
-                positions = [
-                    (x + w // 2, y),          # top‑middle
-                    (x + w, y + h // 2),      # right‑middle
-                    (x + w // 2, y + h),      # bottom‑middle
-                    (x, y + h // 2),          # left‑middle
-                    (x + w // 2, y + h // 2)  # centre
-                ]
-                for (px, py) in positions:
-                    cv2.circle(frame, (px, py), 3, (0, 0, 255), -1)
+                cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), (255, 0, 0), 2)
+                # Populate the body rectangle with red dots using a modest grid size.
+                body_grid = 5
+                for i in range(1, body_grid + 1):
+                    for j in range(1, body_grid + 1):
+                        px = int(bx + bw * i / (body_grid + 1))
+                        py = int(by + bh * j / (body_grid + 1))
+                        cv2.circle(frame, (px, py), 3, (0, 0, 255), -1)
 
         # Show the processed frame with overlays in the UI
         video_slot.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
