@@ -1,6 +1,7 @@
 import streamlit as st
 import cv2
 import numpy as np
+import pandas as pd
 from fpdf import FPDF
 from tempfile import NamedTemporaryFile
 import time
@@ -88,37 +89,47 @@ USERS = {
     "detective": "detect2025"
 }
 
-def login():
-    """Render the login interface and authenticate the user."""
-    # Display logo and title on a single row for a polished sign‑in screen.  The
-    # logo appears on the left and the product name on the right.  This
-    # arrangement satisfies the user's preference for placing the logo next
-    # to the title rather than stacking them vertically.
-    logo_col, title_col = st.columns([1, 4])
-    with logo_col:
-        st.image(LOGO_PATH, width=120)
-    with title_col:
+def show_landing_page():
+    """Render a branded landing page with business description and login form."""
+    # Header with logo on the left and login form on the right.
+    header_left, header_right = st.columns([3, 1])
+    with header_left:
+        st.image(LOGO_PATH, width=200)
         st.title("Elirum Analyzer")
-        st.subheader("Secure Access")
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login", key="login_button"):
-        if USERS.get(username) == password:
-            st.session_state["authenticated"] = True
-            st.session_state["user"] = username
-            st.rerun()
-        else:
-            st.error("Invalid credentials", icon="🚫")
+        st.caption("Behavioral Stress & Nervousness Detection System")
+    with header_right:
+        st.subheader("Sign In")
+        username = st.text_input("Username", key="landing_username")
+        password = st.text_input("Password", type="password", key="landing_password")
+        if st.button("Login", key="landing_login_button"):
+            if USERS.get(username) == password:
+                st.session_state["authenticated"] = True
+                st.session_state["user"] = username
+                st.rerun()
+            else:
+                st.error("Invalid credentials", icon="🚫")
+    # Business description section
+    st.markdown(
+        """
+        ## About Elirum
+        Elirum is a cutting‑edge analytics platform that harnesses advanced computer
+        vision algorithms to detect stress, nervousness and behavioural cues during
+        interviews. By analysing subtle facial expressions and body language, Elirum
+        helps recruiters make more informed, data‑driven decisions while giving
+        candidates constructive feedback. Upload your interview video to generate a
+        comprehensive stress timeline, view flagged moments and download a
+        professional report—all within a sleek, modern interface.
+        """
+    )
 
 # Initialize authentication state
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
-# If not authenticated, show login page and stop execution
+# If not authenticated, show the landing page and stop execution.  The
+# landing page includes a sign‑in form and a description of the business.
 if not st.session_state["authenticated"]:
-    login()
+    show_landing_page()
     st.stop()
 
 # -------------------------
@@ -243,6 +254,68 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list) -> st
 # VIDEO ANALYSIS AND UI
 # -------------------------
 if uploaded_file:
+    # If this file has already been processed during the current session,
+    # reuse the stored results to avoid re‑running the analysis.  This keeps
+    # the timeline, metrics and notes visible after the user downloads the
+    # report.  Otherwise, perform the full analysis.
+    processed_name = st.session_state.get("processed_file")
+    if processed_name == uploaded_file.name and st.session_state.get("nervous_scores"):
+        # The file has been analysed previously.  Show playback and
+        # previously computed results.
+        st.subheader("Interview Playback")
+        st.video(uploaded_file)
+
+        # Use stored fps for report generation.  If not available, fall back
+        # to 30 FPS.
+        fps = st.session_state.get("fps", 30)
+
+        # Display timeline and metrics using stored values
+        col1, col2 = st.columns([2, 1])
+        col1.subheader("Previously Computed Stress Timeline")
+        if st.session_state.get("nervous_scores"):
+            df_cached = pd.DataFrame(
+                {"Stress (%)": st.session_state["nervous_scores"]},
+                index=st.session_state["time_values"],
+            )
+            col1.line_chart(df_cached)
+            col2.metric(
+                "Average Stress",
+                f"{round(np.mean(st.session_state['nervous_scores']), 2)}%",
+            )
+            col2.metric(
+                "Peak Stress",
+                f"{round(np.max(st.session_state['nervous_scores']), 2)}%",
+            )
+
+        # Generate the PDF using cached results
+        pdf_name = generate_pdf(
+            user=st.session_state["user"],
+            fps=fps,
+            stress_events=st.session_state.get("stress_events", []),
+            scores=st.session_state.get("nervous_scores", []),
+        )
+        with open(pdf_name, "rb") as f:
+            st.download_button(
+                "Download Professional PDF Report",
+                f,
+                file_name=pdf_name,
+                key="download_pdf_cached",
+            )
+
+        # Display the flagged stress moments with notes using cached data
+        st.subheader("Flagged Stress Moments (Add Notes)")
+        for i, e in enumerate(st.session_state.get("stress_events", [])):
+            note_key = f"note_cached_{i}"
+            note = st.text_input(
+                f"{e['time']}s — {e['score']}% ({e['trend']})",
+                key=note_key,
+                value=e.get("notes", ""),
+            )
+            st.session_state["stress_events"][i]["notes"] = note
+
+        # Skip further processing for cached files
+        st.stop()
+
     # Save uploaded file to a temporary file.  Using a temporary file rather than
     # reading the entire buffer into memory helps keep RAM usage low and
     # improves the reliability of large uploads.  The video is written to
@@ -313,6 +386,9 @@ if uploaded_file:
 
     # Initialise data structures for motion‑based analysis
     nervous_scores = []
+    # Track the timestamp (in seconds) corresponding to each processed frame.
+    # This will be used to plot the timeline on a seconds axis.
+    time_values = []
     stress_events = []
 
     # Previous frame for motion detection (initially None).  We store
@@ -390,6 +466,11 @@ if uploaded_file:
         score = max(0.0, min(score, 1.0))
 
         nervous_scores.append(round(score * 100, 2))
+        # Record the timestamp for this processed frame.  Dividing by fps
+        # converts the current frame index into seconds.  Even though
+        # frames are skipped, the time axis will reflect the real video
+        # playback progression.
+        time_values.append(frame_idx / fps)
 
         # Determine trend relative to previous logged score
         trend = "Sustained"
@@ -564,15 +645,26 @@ if uploaded_file:
     # Remove the progress bar once processing completes
     progress_bar.empty()
 
-    # Plot timeline of stress scores
-    col2.subheader("Stress Timeline")
-    col2.line_chart(nervous_scores)
+    # Persist the results in session state so they remain visible after
+    # downloading the report or on subsequent reruns.  Store scores,
+    # timestamps and stress events for later use.
+    st.session_state["nervous_scores"] = nervous_scores
+    st.session_state["time_values"] = time_values
+    st.session_state["stress_events"] = stress_events
+    st.session_state["processed_file"] = uploaded_file.name
+    st.session_state["fps"] = fps
 
-    # Display simple metrics summarising the analysis.  Showing the average
-    # stress level and peak stress helps the user quickly interpret the
-    # results without opening the PDF.  These metrics correspond to the
-    # values included in the report.
+    # Plot timeline of stress scores against the time axis.  Use a
+    # DataFrame indexed by seconds so the x‑axis reflects real time.  A
+    # percentage scale is shown on the y‑axis.
+    col2.subheader("Stress Timeline")
     if nervous_scores:
+        df_timeline = pd.DataFrame({"Stress (%)": nervous_scores}, index=time_values)
+        col2.line_chart(df_timeline)
+        # Display simple metrics summarising the analysis.  Showing the average
+        # stress level and peak stress helps the user quickly interpret the
+        # results without opening the PDF.  These metrics correspond to the
+        # values included in the report.
         col2.metric("Average Stress", f"{round(np.mean(nervous_scores), 2)}%")
         col2.metric("Peak Stress", f"{round(np.max(nervous_scores), 2)}%")
 
@@ -595,11 +687,16 @@ if uploaded_file:
 
     # Finally display the flagged stress moments and allow notes.  Positioning
     # this section after the report download ensures it appears at the bottom
-    # of the page, as requested by the user.
+    # of the page, as requested by the user.  Use the session state version
+    # of stress_events so notes persist across reruns and remain after the
+    # report is downloaded.
     st.subheader("Flagged Stress Moments (Add Notes)")
-    for i, e in enumerate(stress_events):
+    for i, e in enumerate(st.session_state.get("stress_events", [])):
+        note_key = f"note_{i}"
         note = st.text_input(
             f"{e['time']}s — {e['score']}% ({e['trend']})",
-            key=f"note_{i}"
+            key=note_key,
         )
-        e["notes"] = note
+        # Store the note back into the session state's stress events for later
+        # inclusion in the PDF if the user re-runs the analysis.
+        st.session_state["stress_events"][i]["notes"] = note

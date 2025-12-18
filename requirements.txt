@@ -3,4 +3,4 @@ opencv-python
 numpy
 fpdf
 Pillow
-
+pandas
