@@ -93,115 +93,101 @@ USERS = {
 }
 
 def show_landing_page():
-    """Render a stylish landing page with a hero section and login option.
+    """Render a high‑impact landing page with a hero section inspired by the user's reference.
 
-    The landing page emulates the look and feel of premium SaaS websites by
-    featuring a dark navigation bar with your logo on the left and a login
-    link on the right.  Below the nav bar, a hero section presents a bold
-    statement about your product along with a supporting tagline.  A sign‑in
-    form is provided below the hero section for users to authenticate and
-    access the analysis dashboard.  Business information appears at the
-    bottom of the page.
+    The landing page now uses a dark hero background image and a new navigation bar.
     """
-    # Encode the logo file as Base64 to embed directly in the HTML.  This avoids
-    # layout jumps while the image is loading and allows CSS to style it
-    # consistently across devices.
+    # Encode images as Base64 for embedding in HTML
+    try:
+        with open("hero_bg.png", "rb") as bg_file:
+            hero_data = base64.b64encode(bg_file.read()).decode("utf-8")
+    except FileNotFoundError:
+        hero_data = ""
     try:
         with open(LOGO_PATH, "rb") as logo_file:
             logo_data = base64.b64encode(logo_file.read()).decode("utf-8")
     except FileNotFoundError:
         logo_data = ""
 
-    # Build the top navigation bar and hero section using raw HTML and CSS.
-    # The hero uses a dark gradient background to echo the reference design
-    # provided by the user.  Inline styles are used here because Streamlit
-    # sanitises external CSS by default.  The login link anchors to the
-    # sign‑in form further down the page.
+    # Compose HTML for nav bar and hero section
     st.markdown(
         f"""
         <style>
-            /* Reset default margins and padding */
             body, html {{ margin: 0; padding: 0; }}
-
-            /* Navigation bar styling */
             .nav-bar {{
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 padding: 1rem 2rem;
-                background-color: black;
-                position: sticky;
+                position: absolute;
                 top: 0;
+                left: 0;
+                right: 0;
                 z-index: 1000;
             }}
-            .nav-bar img {{
-                height: 40px;
-            }}
+            .nav-bar img {{ height: 50px; }}
             .nav-bar a {{
                 color: white;
                 text-decoration: none;
                 font-weight: 600;
                 font-size: 1rem;
+                padding: 8px 16px;
+                border: 1px solid rgba(255,255,255,0.7);
+                border-radius: 4px;
+                transition: background 0.3s ease;
             }}
-
-            /* Hero section styling */
+            .nav-bar a:hover {{ background: rgba(255,255,255,0.2); }}
             .hero {{
-                background-color: black;
-                background-image: radial-gradient(circle at top left, rgba(0, 122, 132, 0.7), rgba(0,0,0,0.9));
+                position: relative;
+                height: 90vh;
+                background-image: url('data:image/png;base64,{hero_data}');
+                background-size: cover;
+                background-position: center;
                 color: white;
-                padding: 6rem 2rem;
-                text-align: left;
+                font-family: 'Arial', sans-serif;
             }}
-            .hero-title {{
+            .hero-overlay {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.45);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding-left: 8%;
+                padding-right: 8%;
+            }}
+            .tagline {{
                 font-size: 3rem;
                 font-weight: 700;
-                margin-bottom: 1rem;
                 line-height: 1.2;
+                margin-bottom: 1rem;
             }}
-            .hero-subtitle {{
-                font-size: 1.2rem;
-                line-height: 1.5;
+            .subtagline {{
+                font-size: 1.3rem;
+                line-height: 1.4;
                 max-width: 600px;
             }}
-            /* Sign in form container */
-            .sign-in-container {{
-                margin: 3rem auto;
-                max-width: 400px;
-                padding: 2rem;
-                background-color: #f8f9fa;
-                border-radius: 8px;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            }}
-            .sign-in-container h2 {{
-                margin-top: 0;
-                margin-bottom: 1rem;
-                color: #333;
-            }}
-            /* Business description styling */
-            .business-info {{
-                max-width: 800px;
-                margin: 2rem auto;
-                padding: 0 2rem;
-            }}
         </style>
-        <div class="nav-bar">
-            <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" />
-            <a href="#login-section">Login</a>
-        </div>
         <div class="hero">
-            <div class="hero-title">Protect more lives in more places</div>
-            <div class="hero-subtitle">Experience the leading operating system for behavioural stress analysis.</div>
+            <div class="nav-bar">
+                <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" />
+                <a href="#login-section">Login</a>
+            </div>
+            <div class="hero-overlay">
+                <div class="tagline">Don't second guess</div>
+                <div class="subtagline">Experience the leading AI-powered system for behavioural and nervousness detection.</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
-    # Sign‑in form section.  Using Streamlit input widgets outside of the raw
-    # HTML ensures proper integration with the app state.  The container ID
-    # allows the nav bar link to anchor correctly.
+    # Anchor for login form
     st.markdown("<div id='login-section'></div>", unsafe_allow_html=True)
     with st.container():
-        st.write("\n")  # Add spacing to separate from the hero
+        st.write("\n")
         with st.form(key="landing_login_form"):
             st.subheader("Sign In")
             username = st.text_input("Username", key="landing_username")
@@ -214,17 +200,15 @@ def show_landing_page():
                     st.experimental_rerun()
                 else:
                     st.error("Invalid credentials", icon="🚫")
-
-    # Business description section displayed underneath the login form
     st.markdown(
         """
-        <div class="business-info">
+        <div style="max-width: 800px; margin: 2rem auto; padding: 0 2rem;">
             <h2>About Elirum</h2>
             <p>
-                Elirum is a cutting‑edge analytics platform that harnesses advanced
+                Elirum is a cutting-edge analytics platform that harnesses advanced
                 computer vision algorithms to detect stress, nervousness and behavioural
                 cues during interviews. By analysing subtle facial expressions and
-                body language, Elirum helps recruiters make more informed, data‑driven
+                body language, Elirum helps recruiters make more informed, data-driven
                 decisions while giving candidates constructive feedback. Upload
                 your interview video to generate a comprehensive stress timeline, view
                 flagged moments and download a professional report—all within a
