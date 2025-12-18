@@ -1,6 +1,5 @@
 streamlit
 opencv-python
-mediapipe==0.9.1
 numpy
 fpdf
 Pillow
