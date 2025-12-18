@@ -243,7 +243,10 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list) -> st
 # VIDEO ANALYSIS AND UI
 # -------------------------
 if uploaded_file:
-    # Save uploaded file to a temporary file
+    # Save uploaded file to a temporary file.  Using a temporary file rather than
+    # reading the entire buffer into memory helps keep RAM usage low and
+    # improves the reliability of large uploads.  The video is written to
+    # disk and then accessed by OpenCV via its filename.
     tfile = NamedTemporaryFile(delete=False)
     tfile.write(uploaded_file.read())
 
@@ -253,6 +256,22 @@ if uploaded_file:
 
     cap = cv2.VideoCapture(tfile.name)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
+
+    # Determine the total number of frames for progress tracking.  Some
+    # containers may return 0 for unknown lengths, so guard against division
+    # by zero.  Use 1 as a default to avoid zero division and ensure the
+    # progress bar updates.
+    total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT) or 1
+
+    # Allow the analyst to adjust the frame skipping rate via the sidebar.
+    # Higher values skip more frames and run faster at the cost of temporal
+    # resolution.  Default remains 3, matching the original behaviour.
+    FRAME_SKIP = st.sidebar.slider(
+        "Frame Skip (higher = faster)", min_value=1, max_value=10, value=3
+    )
+
+    # Add a progress bar to the sidebar so the user can see analysis progress
+    progress_bar = st.sidebar.progress(0)
 
     # Instantiate MediaPipe models if available.  Creating these objects
     # inside the file upload block avoids allocating GPU/CPU resources when
@@ -305,9 +324,6 @@ if uploaded_file:
     video_slot = col1.empty()
 
     frame_idx = 0
-    # Skip more frames to speed up processing when using MediaPipe.  A value
-    # of 3 reduces CPU load by roughly 33% compared to analysing every frame.
-    FRAME_SKIP = 3
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -315,7 +331,14 @@ if uploaded_file:
             break
 
         frame_idx += 1
-        # Skip frames to reduce processing load
+        # Update progress bar based on how many frames have been processed.
+        # Use min() to clamp the value to 1.0 in case of rounding errors.
+        progress_fraction = frame_idx / total_frames
+        progress_bar.progress(min(progress_fraction, 1.0))
+
+        # Skip frames to reduce processing load.  FRAME_SKIP is user‑selectable
+        # via the slider.  Only every nth frame is analysed; the rest are
+        # dropped to save CPU.
         if frame_idx % FRAME_SKIP != 0:
             continue
 
@@ -505,9 +528,20 @@ if uploaded_file:
 
     cap.release()
 
+    # Remove the progress bar once processing completes
+    progress_bar.empty()
+
     # Plot timeline of stress scores
     col2.subheader("Stress Timeline")
     col2.line_chart(nervous_scores)
+
+    # Display simple metrics summarising the analysis.  Showing the average
+    # stress level and peak stress helps the user quickly interpret the
+    # results without opening the PDF.  These metrics correspond to the
+    # values included in the report.
+    if nervous_scores:
+        col2.metric("Average Stress", f"{round(np.mean(nervous_scores), 2)}%")
+        col2.metric("Peak Stress", f"{round(np.max(nervous_scores), 2)}%")
 
     # Generate the PDF report first so it is ready for download
     pdf_name = generate_pdf(
