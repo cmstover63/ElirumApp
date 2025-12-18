@@ -33,11 +33,17 @@ except Exception:
 # Path to your logo image within the app directory
 LOGO_PATH = "elirum_logo.png"
 
-# Colour palette (Option 2: green/teal with coral accents)
-PRIMARY_COLOR = "#00695C"     # deep teal
-SECONDARY_COLOR = "#26A69A"   # light teal
-ACCENT_COLOR = "#FF7043"      # coral
+# Colour palette (Option C: light gradient tech‑startup look)
+# Primary colour: deep teal used for buttons and header bands.
+PRIMARY_COLOR = "#007A84"     # deep teal
+# Secondary colour: fresh green for highlights and secondary UI elements.
+SECONDARY_COLOR = "#00A36C"   # green‑teal
+# Accent colour: lime for subtle highlights in charts or alerts.
+ACCENT_COLOR = "#4CD964"      # lime highlight
+# Background colour: white for a clean, modern interface.
 BACKGROUND_COLOR = "#FFFFFF"  # white
+# Additional dark accent (not currently used but available for future styling).
+DARK_ACCENT_COLOR = "#003C45"
 
 # -------------------------
 # LOGIN SYSTEM
@@ -51,9 +57,16 @@ USERS = {
 
 def login():
     """Render the login interface and authenticate the user."""
-    st.image(LOGO_PATH, width=150)
-    st.title("Elirum Analyzer")
-    st.subheader("Secure Access")
+    # Display logo and title on a single row for a polished sign‑in screen.  The
+    # logo appears on the left and the product name on the right.  This
+    # arrangement satisfies the user's preference for placing the logo next
+    # to the title rather than stacking them vertically.
+    logo_col, title_col = st.columns([1, 4])
+    with logo_col:
+        st.image(LOGO_PATH, width=120)
+    with title_col:
+        st.title("Elirum Analyzer")
+        st.subheader("Secure Access")
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -96,10 +109,16 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Display logo and page title
-st.image(LOGO_PATH, width=150)
-st.title("Elirum Analyzer")
-st.caption("Behavioral Stress & Nervousness Detection System")
+# Display logo and page title on one row.  The logo appears on the left
+# and the title and caption on the right.  This layout matches the
+# user’s preference for left‑aligned logo placement (Option 2) and
+# provides a balanced header at the top of the application.
+header_logo_col, header_title_col = st.columns([1, 4])
+with header_logo_col:
+    st.image(LOGO_PATH, width=120)
+with header_title_col:
+    st.title("Elirum Analyzer")
+    st.caption("Behavioral Stress & Nervousness Detection System")
 
 # -------------------------
 # SIDEBAR
