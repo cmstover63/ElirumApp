@@ -1,0 +1,5 @@
+[server]
+maxUploadSize = 500
+
+# This configuration increases the maximum upload size for Streamlit's
+# file uploader. The default limit is 200MB; raising it to 500MB allows larger video files to be uploaded without triggering size errors.
