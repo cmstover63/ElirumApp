@@ -16,6 +16,20 @@ from tempfile import NamedTemporaryFile
 import time
 
 # -------------------------
+# CASCADE MODELS
+# -------------------------
+# Load Haar cascade models for face and body detection. OpenCV installs the cascade
+# files with the Python package, and the paths are accessible via ``cv2.data.haarcascades``.
+# These models enable simple rectangle detection around faces and full bodies without
+# requiring the MediaPipe library. If the body cascade fails to load, the app
+# gracefully disables body detection.
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+try:
+    body_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_fullbody.xml')
+except Exception:
+    body_cascade = None
+
+# -------------------------
 # NOTE ON MEDIAPIPE REMOVAL
 # -------------------------
 # MediaPipe has been removed from this application because it does not support
@@ -289,7 +303,18 @@ if uploaded_file:
         cv2.putText(frame, f"Trend: {trend}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
         cv2.putText(frame, f"Time: {round(frame_idx/fps,2)}s", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
 
-        # Show the processed frame in the UI
+        # Draw face bounding boxes using Haar cascade
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        # Optionally draw body bounding boxes if the model is available
+        if body_cascade is not None:
+            bodies = body_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+            for (x, y, w, h) in bodies:
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+        # Show the processed frame with overlays in the UI
         video_slot.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
 
         # Update previous frame for next iteration
