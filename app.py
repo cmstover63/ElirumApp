@@ -303,16 +303,43 @@ if uploaded_file:
         cv2.putText(frame, f"Trend: {trend}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
         cv2.putText(frame, f"Time: {round(frame_idx/fps,2)}s", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200,200,200), 2)
 
-        # Draw face bounding boxes using Haar cascade
+        # Draw face landmarks as small red dots instead of full bounding boxes.  These
+        # points approximate the old MediaPipe face mesh by placing dots at the centre
+        # and quarter positions of the detected face rectangle.  Using small circles
+        # avoids drawing large boxes while still indicating that a face was detected.
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
         for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            # positions for red dots: centre and the four quadrant midpoints
+            positions = [
+                (x + w // 2, y + h // 2),                   # centre
+                (x + w // 4, y + h // 4),                   # top‑left quadrant
+                (x + 3 * w // 4, y + h // 4),               # top‑right quadrant
+                (x + w // 4, y + 3 * h // 4),               # bottom‑left quadrant
+                (x + 3 * w // 4, y + 3 * h // 4)            # bottom‑right quadrant
+            ]
+            for (px, py) in positions:
+                cv2.circle(frame, (px, py), 3, (0, 0, 255), -1)
 
-        # Optionally draw body bounding boxes if the model is available
+        # Draw body outline as a rectangle with red dots indicating key positions.
+        # If the body classifier is available, draw the bounding box in blue and
+        # highlight the centre and midpoints of each side with red dots to mimic
+        # body landmarks from the old version.
         if body_cascade is not None:
             bodies = body_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
             for (x, y, w, h) in bodies:
+                # Draw blue rectangle for the body outline
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                # Define positions for red dots: top‑middle, right‑middle, bottom‑middle,
+                # left‑middle, and centre
+                positions = [
+                    (x + w // 2, y),          # top‑middle
+                    (x + w, y + h // 2),      # right‑middle
+                    (x + w // 2, y + h),      # bottom‑middle
+                    (x, y + h // 2),          # left‑middle
+                    (x + w // 2, y + h // 2)  # centre
+                ]
+                for (px, py) in positions:
+                    cv2.circle(frame, (px, py), 3, (0, 0, 255), -1)
 
         # Show the processed frame with overlays in the UI
         video_slot.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
@@ -326,16 +353,7 @@ if uploaded_file:
     col2.subheader("Stress Timeline")
     col2.line_chart(nervous_scores)
 
-    # List flagged stress moments with editable notes
-    st.subheader("Flagged Stress Moments (Add Notes)")
-    for i, e in enumerate(stress_events):
-        note = st.text_input(
-            f"{e['time']}s — {e['score']}% ({e['trend']})",
-            key=f"note_{i}"
-        )
-        e["notes"] = note
-
-    # Generate and provide PDF download
+    # Generate the PDF report first so it is ready for download
     pdf_name = generate_pdf(
         user=st.session_state["user"],
         fps=fps,
@@ -343,6 +361,7 @@ if uploaded_file:
         scores=nervous_scores
     )
 
+    # Provide download button for the PDF report
     with open(pdf_name, "rb") as f:
         st.download_button(
             "Download Professional PDF Report",
@@ -350,3 +369,14 @@ if uploaded_file:
             file_name=pdf_name,
             key="download_pdf"
         )
+
+    # Finally display the flagged stress moments and allow notes.  Positioning
+    # this section after the report download ensures it appears at the bottom
+    # of the page, as requested by the user.
+    st.subheader("Flagged Stress Moments (Add Notes)")
+    for i, e in enumerate(stress_events):
+        note = st.text_input(
+            f"{e['time']}s — {e['score']}% ({e['trend']})",
+            key=f"note_{i}"
+        )
+        e["notes"] = note
