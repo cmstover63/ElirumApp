@@ -124,12 +124,14 @@ def show_landing_page():
                 body, html, .stApp {{ margin: 0; padding: 0; }}
                 .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
                 .login-page {{
-                    height: 100vh;
-                    background-color: {BACKGROUND_COLOR};
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                }}
+                         height: 100vh;
+                         background-color: {BACKGROUND_COLOR};
+                         display: flex;
+                         justify-content: center;
+                         align-items: center;
+                         position: relative;
+                         top: -200px; /* shift login content upwards by approx 400px */
+                     }}
                 .login-card {{
                     background: #F9F9F9;
                     padding: 2rem;
@@ -218,19 +220,19 @@ def show_landing_page():
                 color: white;
                 font-family: 'Arial', sans-serif;
             }}
-            .hero-overlay {{
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.45);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                padding-left: 8%;
-                padding-right: 8%;
-            }}
+                .hero-overlay {{
+                     position: absolute;
+                     top: 0;
+                     left: 0;
+                     width: 100%;
+                     height: 100%;
+                     background: rgba(0, 0, 0, 0.45);
+                     display: flex;
+                     flex-direction: column;
+                     justify-content: center;
+                     padding-left: 4%;
+                     padding-right: 4%; /* reduce side padding to allow more of the background to show */
+                 }}
             .tagline {{
                 font-size: 3rem;
                 font-weight: 700;
@@ -252,7 +254,8 @@ def show_landing_page():
                     right: 20px;
                     z-index: 1001;
                     height: 80px; /* match the nav-bar logo height */
-                    padding: 0 24px;
+                    width: 288px; /* roughly 3 inches wide */
+                    padding: 0;
                     border: 2px solid {PRIMARY_COLOR};
                     border-radius: 8px;
                     background: #FFFFFF;
