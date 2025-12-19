@@ -9,6 +9,9 @@ import time
 # Additional modules for styling and encoding assets
 import base64  # Used to embed the logo image directly in HTML
 
+# Configure the Streamlit page to use a wide layout and collapse the sidebar.
+st.set_page_config(page_title="Elirum", layout="wide", initial_sidebar_state="collapsed")
+
 # Add MediaPipe for facial mesh, pose skeleton and hand detection.  MediaPipe
 # enables lightweight, fast landmark detection for faces, full‑body pose and
 # hands.  These landmarks drive the red‑dot mesh over the face, the green
@@ -118,6 +121,12 @@ def show_landing_page():
         <style>
             /* Remove default body margins so the hero spans the full window */
             body, html {{ margin: 0; padding: 0; }}
+            /* Expand the Streamlit block container to full width and remove padding */
+            .block-container {{
+                padding: 0;
+                margin: 0;
+                max-width: 100%;
+            }}
 
             .nav-bar {{
                 display: flex;
@@ -167,7 +176,7 @@ def show_landing_page():
             }}
             /* Style and position the Streamlit button in the top‑right corner */
             div[data-testid="stButton"] > button {{
-                position: absolute;
+                position: fixed;
                 top: 20px;
                 right: 20px;
                 z-index: 1001;
