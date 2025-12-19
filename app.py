@@ -254,12 +254,14 @@ def show_landing_page():
                     top: 20px;
                     right: 20px;
                     z-index: 1001;
-                    border: 1px solid rgba(255,255,255,0.7);
-                    border-radius: 4px;
+                    /* Match the button style in the provided screenshot: white border and text on a transparent background */
+                    border: 2px solid #FFFFFF;
+                    border-radius: 6px;
                     background: transparent;
-                    color: white;
+                    color: #FFFFFF;
                     font-weight: 600;
-                    padding: 8px 16px;
+                    padding: 8px 20px;
+                    font-size: 1rem;
                 }}
                 div[data-testid="stButton"] > button:hover {{
                     background: rgba(255,255,255,0.2);
