@@ -123,9 +123,13 @@ def show_landing_page():
             <style>
                 body, html, .stApp {{ margin: 0; padding: 0; }}
                 .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
-                     .login-page {{
+                    .login-page {{
+                         /* Use the hero background for the login page so the image fills the
+                            entire viewport instead of a plain white background. */
                          height: 100vh;
-                         background-color: {BACKGROUND_COLOR};
+                         background-image: url('data:image/png;base64,{hero_data}');
+                         background-size: cover;
+                         background-position: center;
                          display: flex;
                          justify-content: center;
                          align-items: center;
@@ -208,7 +212,8 @@ def show_landing_page():
                 right: 0;
                 z-index: 1000;
             }}
-                 .nav-bar img {{ height: 300px; }}
+                 /* Resize the logo in the nav bar to a reasonable height */
+                 .nav-bar img {{ height: 80px; }}
             .hero {{
                 position: relative;
                 height: 100vh;
@@ -242,30 +247,22 @@ def show_landing_page():
                 line-height: 1.4;
                 max-width: 600px;
             }}
-                /* Style the login button on the main hero page to match the size of the logo
-                   in the navigation bar.  Use a white background with black text and a primary
-                   coloured border for contrast.  Avoid stretching the button across the top by
-                   giving it a fixed height and horizontal padding. */
-                     div[data-testid="stButton"] > button {{
-                         position: fixed;
-                         top: 146px; /* move the button down by ~1 inch to align vertically with the enlarged logo */
-                         right: 20px;
-                         z-index: 1001;
-                         height: 300px; /* match the enlarged logo size */
-                         width: 300px; /* square button roughly matching the logo dimensions */
-                         padding: 0;
-                    border: 2px solid {PRIMARY_COLOR};
-                    border-radius: 8px;
-                         background: transparent;
-                    color: #000000;
+                /* Style the login button on the main hero page similar to the original design:
+                   small button with a white border and white text, positioned next to the logo. */
+                div[data-testid="stButton"] > button {{
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 1001;
+                    border: 1px solid rgba(255,255,255,0.7);
+                    border-radius: 4px;
+                    background: transparent;
+                    color: white;
                     font-weight: 600;
-                    font-size: 1rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
+                    padding: 8px 16px;
                 }}
                 div[data-testid="stButton"] > button:hover {{
-                    background: #F5F5F5;
+                    background: rgba(255,255,255,0.2);
                 }}
         </style>
         <div class="hero">
