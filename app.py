@@ -144,12 +144,13 @@ def show_landing_page():
             """,
             unsafe_allow_html=True,
         )
-        st.image(LOGO_PATH, width=120)
+        # Display a larger logo on the login page for branding
+        st.image(LOGO_PATH, width=150)
         st.markdown("<h2>Sign In</h2>", unsafe_allow_html=True)
         username = st.text_input("Username", key="login_page_user")
         password = st.text_input("Password", type="password", key="login_page_pass")
         sign_in = st.button("Sign In", key="login_page_signin")
-        cancel = st.button("Cancel", key="login_page_cancel")
+        # Do not include a cancel button on the dedicated login page; the user can navigate back using the browser if needed.
         if sign_in:
             if username in USERS and USERS[username] == password:
                 st.session_state["authenticated"] = True
@@ -161,12 +162,6 @@ def show_landing_page():
                     st.experimental_rerun()
             else:
                 st.error("Invalid credentials. Please try again.")
-        if cancel:
-            st.session_state["login_page"] = False
-            try:
-                st.rerun()
-            except Exception:
-                st.experimental_rerun()
         st.markdown("</div></div>", unsafe_allow_html=True)
         return
 
@@ -194,7 +189,7 @@ def show_landing_page():
                 right: 0;
                 z-index: 1000;
             }}
-            .nav-bar img {{ height: 50px; }}
+            .nav-bar img {{ height: 80px; }}
             .hero {{
                 position: relative;
                 height: 100vh;
