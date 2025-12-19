@@ -116,6 +116,8 @@ def show_landing_page():
     # This page uses the same hero background but centres a login card containing
     # username and password fields.  Cancelling returns users to the landing page.
     if st.session_state.get("login_page", False):
+        # Render a clean, white login page reminiscent of the original home page.  The
+        # page uses a plain white background and a light card for the sign‑in form.
         st.markdown(
             f"""
             <style>
@@ -123,35 +125,52 @@ def show_landing_page():
                 .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
                 .login-page {{
                     height: 100vh;
-                    background-image: url('data:image/png;base64,{hero_data}');
-                    background-size: cover;
-                    background-position: center;
+                    background-color: {BACKGROUND_COLOR};
                     display: flex;
                     justify-content: center;
                     align-items: center;
                 }}
                 .login-card {{
-                    background: rgba(0, 0, 0, 0.75);
+                    background: #F9F9F9;
                     padding: 2rem;
                     border-radius: 8px;
                     width: 320px;
-                    color: white;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                    color: #333;
                 }}
-                .login-card h2 {{ margin-bottom: 1rem; }}
+                .login-card h2 {{ margin-bottom: 1rem; color: #333; }}
+                .login-card input {{
+                    width: 100%;
+                    padding: 0.5rem;
+                    margin-bottom: 1rem;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    color: #333;
+                }}
+                .login-card button {{
+                    width: 100%;
+                    padding: 0.6rem;
+                    background: {PRIMARY_COLOR};
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    font-weight: 600;
+                }}
+                .login-card button:hover {{
+                    background: #055E66;
+                }}
             </style>
             <div class="login-page">
                 <div class="login-card">
             """,
             unsafe_allow_html=True,
         )
-        # Display a larger logo on the login page for branding
-        st.image(LOGO_PATH, width=150)
+        # Larger logo on the login page for branding
+        st.image(LOGO_PATH, width=180)
         st.markdown("<h2>Sign In</h2>", unsafe_allow_html=True)
         username = st.text_input("Username", key="login_page_user")
         password = st.text_input("Password", type="password", key="login_page_pass")
-        sign_in = st.button("Sign In", key="login_page_signin")
-        # Do not include a cancel button on the dedicated login page; the user can navigate back using the browser if needed.
-        if sign_in:
+        if st.button("Sign In", key="login_page_signin"):
             if username in USERS and USERS[username] == password:
                 st.session_state["authenticated"] = True
                 st.session_state["user"] = username
@@ -184,7 +203,7 @@ def show_landing_page():
                 align-items: center;
                 padding: 1rem 2rem;
                 position: absolute;
-                top: 20px; /* move nav bar down */
+                top: 50px; /* move nav bar further down */
                 left: 0;
                 right: 0;
                 z-index: 1000;
@@ -225,7 +244,7 @@ def show_landing_page():
             }}
             div[data-testid="stButton"] > button {{
                 position: fixed;
-                top: 20px;
+                top: 50px; /* align with nav bar */
                 right: 20px;
                 z-index: 1001;
                 border: 1px solid rgba(255,255,255,0.7);
