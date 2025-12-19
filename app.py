@@ -119,15 +119,15 @@ def show_landing_page():
     st.markdown(
         f"""
         <style>
-            /* Remove default body margins so the hero spans the full window */
-            body, html {{ margin: 0; padding: 0; }}
-            /* Expand the Streamlit block container to full width and remove padding */
+            /* Remove default body and Streamlit padding */
+            body, html, .stApp {{ margin: 0; padding: 0; }}
+            /* Expand the Streamlit block container to full width */
             .block-container {{
                 padding: 0;
                 margin: 0;
                 max-width: 100%;
+                width: 100%;
             }}
-
             .nav-bar {{
                 display: flex;
                 justify-content: space-between;
@@ -140,10 +140,9 @@ def show_landing_page():
                 z-index: 1000;
             }}
             .nav-bar img {{ height: 50px; }}
-
             .hero {{
                 position: relative;
-                height: 100vh; /* full viewport height */
+                height: 100vh;
                 background-image: url('data:image/png;base64,{hero_data}');
                 background-size: cover;
                 background-position: center;
@@ -174,7 +173,7 @@ def show_landing_page():
                 line-height: 1.4;
                 max-width: 600px;
             }}
-            /* Style and position the Streamlit button in the top‑right corner */
+            /* Style and position the Streamlit button in the top‑right */
             div[data-testid="stButton"] > button {{
                 position: fixed;
                 top: 20px;
@@ -182,13 +181,37 @@ def show_landing_page():
                 z-index: 1001;
                 border: 1px solid rgba(255,255,255,0.7);
                 border-radius: 4px;
-                background: transparent;
+                background: rgba(0,0,0,0.3);
                 color: white;
                 font-weight: 600;
                 padding: 8px 16px;
             }}
             div[data-testid="stButton"] > button:hover {{
                 background: rgba(255,255,255,0.2);
+            }}
+            /* Login form overlay */
+            .login-overlay {{
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                padding: 2rem;
+                border-radius: 8px;
+                z-index: 1002;
+                width: 300px;
+                color: white;
+            }}
+            .login-overlay input {{
+                width: 100%;
+                padding: 0.5rem;
+                margin-bottom: 0.8rem;
+                border-radius: 4px;
+                border: none;
+            }}
+            .login-overlay .button-container {{
+                display: flex;
+                justify-content: space-between;
             }}
         </style>
         <div class="hero">
@@ -203,18 +226,40 @@ def show_landing_page():
         """,
         unsafe_allow_html=True,
     )
-    # Render the login button.  The CSS above positions this button in the top‑right
-    # corner of the viewport, matching the requested layout.
+    # Render login button: clicking reveals login form instead of instant authentication.
     if st.button("Login", key="landing_enter_button"):
-        st.session_state["authenticated"] = True
-        st.session_state["user"] = "guest"
-        # Streamlit 1.26+ deprecates experimental_rerun in favour of st.rerun().
-        # Use st.rerun() for compatibility across versions.
+        st.session_state["show_login_form"] = True
         try:
             st.rerun()
-        except AttributeError:
-            # Fall back to experimental_rerun for older versions
+        except Exception:
             st.experimental_rerun()
+
+    # Display login form overlay when flag is set.
+    if st.session_state.get("show_login_form", False):
+        st.markdown('<div class="login-overlay">', unsafe_allow_html=True)
+        username = st.text_input("Username", key="login_user")
+        password = st.text_input("Password", type="password", key="login_pass")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Sign In", key="login_signin"):
+                if username in USERS and USERS[username] == password:
+                    st.session_state["authenticated"] = True
+                    st.session_state["user"] = username
+                    st.session_state["show_login_form"] = False
+                    try:
+                        st.rerun()
+                    except Exception:
+                        st.experimental_rerun()
+                else:
+                    st.error("Invalid credentials. Please try again.")
+        with col2:
+            if st.button("Cancel", key="login_cancel"):
+                st.session_state["show_login_form"] = False
+                try:
+                    st.rerun()
+                except Exception:
+                    st.experimental_rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # Initialize authentication state
 if "authenticated" not in st.session_state:
