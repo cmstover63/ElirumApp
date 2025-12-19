@@ -112,16 +112,71 @@ def show_landing_page():
     except FileNotFoundError:
         logo_data = ""
 
-    # Compose HTML for nav bar and hero section.  The hero now occupies the full
-    # viewport (100vh) and the page margins are removed to eliminate any white
-    # borders.  The login button will be positioned absolutely in the top‑right
-    # corner via a custom CSS rule defined below.
+    # If login page flag is active, display dedicated login page instead of hero.
+    # This page uses the same hero background but centres a login card containing
+    # username and password fields.  Cancelling returns users to the landing page.
+    if st.session_state.get("login_page", False):
+        st.markdown(
+            f"""
+            <style>
+                body, html, .stApp {{ margin: 0; padding: 0; }}
+                .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
+                .login-page {{
+                    height: 100vh;
+                    background-image: url('data:image/png;base64,{hero_data}');
+                    background-size: cover;
+                    background-position: center;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }}
+                .login-card {{
+                    background: rgba(0, 0, 0, 0.75);
+                    padding: 2rem;
+                    border-radius: 8px;
+                    width: 320px;
+                    color: white;
+                }}
+                .login-card h2 {{ margin-bottom: 1rem; }}
+            </style>
+            <div class="login-page">
+                <div class="login-card">
+            """,
+            unsafe_allow_html=True,
+        )
+        st.image(LOGO_PATH, width=120)
+        st.markdown("<h2>Sign In</h2>", unsafe_allow_html=True)
+        username = st.text_input("Username", key="login_page_user")
+        password = st.text_input("Password", type="password", key="login_page_pass")
+        sign_in = st.button("Sign In", key="login_page_signin")
+        cancel = st.button("Cancel", key="login_page_cancel")
+        if sign_in:
+            if username in USERS and USERS[username] == password:
+                st.session_state["authenticated"] = True
+                st.session_state["user"] = username
+                st.session_state["login_page"] = False
+                try:
+                    st.rerun()
+                except Exception:
+                    st.experimental_rerun()
+            else:
+                st.error("Invalid credentials. Please try again.")
+        if cancel:
+            st.session_state["login_page"] = False
+            try:
+                st.rerun()
+            except Exception:
+                st.experimental_rerun()
+        st.markdown("</div></div>", unsafe_allow_html=True)
+        return
+
+    # Compose HTML for hero page when not in login mode.  Adjust the nav bar
+    # position downward so that the logo and login button appear slightly
+    # below the top edge.  Remove margin/padding to eliminate white borders.
     st.markdown(
         f"""
         <style>
-            /* Remove default body and Streamlit padding */
             body, html, .stApp {{ margin: 0; padding: 0; }}
-            /* Expand the Streamlit block container to full width */
             .block-container {{
                 padding: 0;
                 margin: 0;
@@ -134,7 +189,7 @@ def show_landing_page():
                 align-items: center;
                 padding: 1rem 2rem;
                 position: absolute;
-                top: 0;
+                top: 20px; /* move nav bar down */
                 left: 0;
                 right: 0;
                 z-index: 1000;
@@ -173,7 +228,6 @@ def show_landing_page():
                 line-height: 1.4;
                 max-width: 600px;
             }}
-            /* Style and position the Streamlit button in the top‑right */
             div[data-testid="stButton"] > button {{
                 position: fixed;
                 top: 20px;
@@ -189,30 +243,6 @@ def show_landing_page():
             div[data-testid="stButton"] > button:hover {{
                 background: rgba(255,255,255,0.2);
             }}
-            /* Login form overlay */
-            .login-overlay {{
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.8);
-                padding: 2rem;
-                border-radius: 8px;
-                z-index: 1002;
-                width: 300px;
-                color: white;
-            }}
-            .login-overlay input {{
-                width: 100%;
-                padding: 0.5rem;
-                margin-bottom: 0.8rem;
-                border-radius: 4px;
-                border: none;
-            }}
-            .login-overlay .button-container {{
-                display: flex;
-                justify-content: space-between;
-            }}
         </style>
         <div class="hero">
             <div class="nav-bar">
@@ -226,40 +256,14 @@ def show_landing_page():
         """,
         unsafe_allow_html=True,
     )
-    # Render login button: clicking reveals login form instead of instant authentication.
+    # When the login button on the hero page is clicked, set the login page flag
+    # and re-run.  The dedicated login page will be displayed on the next run.
     if st.button("Login", key="landing_enter_button"):
-        st.session_state["show_login_form"] = True
+        st.session_state["login_page"] = True
         try:
             st.rerun()
         except Exception:
             st.experimental_rerun()
-
-    # Display login form overlay when flag is set.
-    if st.session_state.get("show_login_form", False):
-        st.markdown('<div class="login-overlay">', unsafe_allow_html=True)
-        username = st.text_input("Username", key="login_user")
-        password = st.text_input("Password", type="password", key="login_pass")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Sign In", key="login_signin"):
-                if username in USERS and USERS[username] == password:
-                    st.session_state["authenticated"] = True
-                    st.session_state["user"] = username
-                    st.session_state["show_login_form"] = False
-                    try:
-                        st.rerun()
-                    except Exception:
-                        st.experimental_rerun()
-                else:
-                    st.error("Invalid credentials. Please try again.")
-        with col2:
-            if st.button("Cancel", key="login_cancel"):
-                st.session_state["show_login_form"] = False
-                try:
-                    st.rerun()
-                except Exception:
-                    st.experimental_rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # Initialize authentication state
 if "authenticated" not in st.session_state:
