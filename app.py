@@ -208,7 +208,13 @@ def show_landing_page():
     if st.button("Login", key="landing_enter_button"):
         st.session_state["authenticated"] = True
         st.session_state["user"] = "guest"
-        st.experimental_rerun()
+        # Streamlit 1.26+ deprecates experimental_rerun in favour of st.rerun().
+        # Use st.rerun() for compatibility across versions.
+        try:
+            st.rerun()
+        except AttributeError:
+            # Fall back to experimental_rerun for older versions
+            st.experimental_rerun()
 
 # Initialize authentication state
 if "authenticated" not in st.session_state:
