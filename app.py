@@ -242,21 +242,30 @@ def show_landing_page():
                 line-height: 1.4;
                 max-width: 600px;
             }}
-            div[data-testid="stButton"] > button {{
-                position: fixed;
-                top: 50px; /* align with nav bar */
-                right: 20px;
-                z-index: 1001;
-                border: 1px solid rgba(255,255,255,0.7);
-                border-radius: 4px;
-                background: rgba(0,0,0,0.3);
-                color: white;
-                font-weight: 600;
-                padding: 8px 16px;
-            }}
-            div[data-testid="stButton"] > button:hover {{
-                background: rgba(255,255,255,0.2);
-            }}
+                /* Style the login button on the main hero page to match the size of the logo
+                   in the navigation bar.  Use a white background with black text and a primary
+                   coloured border for contrast.  Avoid stretching the button across the top by
+                   giving it a fixed height and horizontal padding. */
+                div[data-testid="stButton"] > button {{
+                    position: fixed;
+                    top: 50px; /* align with nav bar */
+                    right: 20px;
+                    z-index: 1001;
+                    height: 80px; /* match the nav-bar logo height */
+                    padding: 0 24px;
+                    border: 2px solid {PRIMARY_COLOR};
+                    border-radius: 8px;
+                    background: #FFFFFF;
+                    color: #000000;
+                    font-weight: 600;
+                    font-size: 1rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }}
+                div[data-testid="stButton"] > button:hover {{
+                    background: #F5F5F5;
+                }}
         </style>
         <div class="hero">
             <div class="nav-bar">
