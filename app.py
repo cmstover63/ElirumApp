@@ -109,11 +109,16 @@ def show_landing_page():
     except FileNotFoundError:
         logo_data = ""
 
-    # Compose HTML for nav bar and hero section
+    # Compose HTML for nav bar and hero section.  The hero now occupies the full
+    # viewport (100vh) and the page margins are removed to eliminate any white
+    # borders.  The login button will be positioned absolutely in the top‑right
+    # corner via a custom CSS rule defined below.
     st.markdown(
         f"""
         <style>
+            /* Remove default body margins so the hero spans the full window */
             body, html {{ margin: 0; padding: 0; }}
+
             .nav-bar {{
                 display: flex;
                 justify-content: space-between;
@@ -126,20 +131,10 @@ def show_landing_page():
                 z-index: 1000;
             }}
             .nav-bar img {{ height: 50px; }}
-            .nav-bar a {{
-                color: white;
-                text-decoration: none;
-                font-weight: 600;
-                font-size: 1rem;
-                padding: 8px 16px;
-                border: 1px solid rgba(255,255,255,0.7);
-                border-radius: 4px;
-                transition: background 0.3s ease;
-            }}
-            .nav-bar a:hover {{ background: rgba(255,255,255,0.2); }}
+
             .hero {{
                 position: relative;
-                height: 90vh;
+                height: 100vh; /* full viewport height */
                 background-image: url('data:image/png;base64,{hero_data}');
                 background-size: cover;
                 background-position: center;
@@ -170,27 +165,38 @@ def show_landing_page():
                 line-height: 1.4;
                 max-width: 600px;
             }}
+            /* Style and position the Streamlit button in the top‑right corner */
+            div[data-testid="stButton"] > button {{
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                z-index: 1001;
+                border: 1px solid rgba(255,255,255,0.7);
+                border-radius: 4px;
+                background: transparent;
+                color: white;
+                font-weight: 600;
+                padding: 8px 16px;
+            }}
+            div[data-testid="stButton"] > button:hover {{
+                background: rgba(255,255,255,0.2);
+            }}
         </style>
         <div class="hero">
             <div class="nav-bar">
                 <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" />
-                <!-- Removed login link from nav bar; a standalone login button is rendered below the hero -->
             </div>
             <div class="hero-overlay">
                 <div class="tagline">Don't second guess</div>
-                <div class="subtagline">Experience the leading AI-powered system for behavioural and nervousness detection.</div>
+                <div class="subtagline">Experience the leading AI‑powered system for behavioural and nervousness detection.</div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    # The landing page intentionally omits the sign‑in form and business description to
-    # allow the hero section to occupy the full viewport.  A single login
-    # button below the hero allows the user to enter the application
-    # immediately without scrolling.
-    st.write("\n")
+    # Render the login button.  The CSS above positions this button in the top‑right
+    # corner of the viewport, matching the requested layout.
     if st.button("Login", key="landing_enter_button"):
-        # Bypass the authentication flow and mark the user as authenticated.
         st.session_state["authenticated"] = True
         st.session_state["user"] = "guest"
         st.experimental_rerun()
