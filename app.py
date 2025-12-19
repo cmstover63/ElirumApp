@@ -123,14 +123,12 @@ def show_landing_page():
             <style>
                 body, html, .stApp {{ margin: 0; padding: 0; }}
                 .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
-                .login-page {{
+                     .login-page {{
                          height: 100vh;
                          background-color: {BACKGROUND_COLOR};
                          display: flex;
                          justify-content: center;
                          align-items: center;
-                         position: relative;
-                         top: -200px; /* shift login content upwards by approx 400px */
                      }}
                 .login-card {{
                     background: #F9F9F9;
@@ -210,7 +208,7 @@ def show_landing_page():
                 right: 0;
                 z-index: 1000;
             }}
-            .nav-bar img {{ height: 80px; }}
+                 .nav-bar img {{ height: 300px; }}
             .hero {{
                 position: relative;
                 height: 100vh;
@@ -248,17 +246,17 @@ def show_landing_page():
                    in the navigation bar.  Use a white background with black text and a primary
                    coloured border for contrast.  Avoid stretching the button across the top by
                    giving it a fixed height and horizontal padding. */
-                div[data-testid="stButton"] > button {{
-                    position: fixed;
-                    top: 50px; /* align with nav bar */
-                    right: 20px;
-                    z-index: 1001;
-                    height: 80px; /* match the nav-bar logo height */
-                    width: 288px; /* roughly 3 inches wide */
-                    padding: 0;
+                     div[data-testid="stButton"] > button {{
+                         position: fixed;
+                         top: 146px; /* move the button down by ~1 inch to align vertically with the enlarged logo */
+                         right: 20px;
+                         z-index: 1001;
+                         height: 300px; /* match the enlarged logo size */
+                         width: 300px; /* square button roughly matching the logo dimensions */
+                         padding: 0;
                     border: 2px solid {PRIMARY_COLOR};
                     border-radius: 8px;
-                    background: #FFFFFF;
+                         background: transparent;
                     color: #000000;
                     font-weight: 600;
                     font-size: 1rem;
