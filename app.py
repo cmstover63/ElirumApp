@@ -254,10 +254,10 @@ def show_landing_page():
                     top: 20px;
                     right: 20px;
                     z-index: 1001;
-                    /* Match the button style in the provided screenshot: white border and text on a transparent background */
-                    border: 2px solid #FFFFFF;
-                    border-radius: 6px;
-                    background: transparent;
+                    /* Match the button style in the provided screenshot: thin white border and dark translucent background */
+                    border: 1px solid #FFFFFF;
+                    border-radius: 4px;
+                    background: rgba(0,0,0,0.35);
                     color: #FFFFFF;
                     font-weight: 600;
                     padding: 8px 20px;
