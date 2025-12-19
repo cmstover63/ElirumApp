@@ -174,7 +174,7 @@ def show_landing_page():
         <div class="hero">
             <div class="nav-bar">
                 <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" />
-                <a href="#login-section">Login</a>
+                <!-- Removed login link from nav bar; a standalone login button is rendered below the hero -->
             </div>
             <div class="hero-overlay">
                 <div class="tagline">Don't second guess</div>
@@ -184,40 +184,16 @@ def show_landing_page():
         """,
         unsafe_allow_html=True,
     )
-    # Anchor for login form
-    st.markdown("<div id='login-section'></div>", unsafe_allow_html=True)
-    with st.container():
-        st.write("\n")
-        with st.form(key="landing_login_form"):
-            st.subheader("Sign In")
-            username = st.text_input("Username", key="landing_username")
-            password = st.text_input("Password", type="password", key="landing_password")
-            submitted = st.form_submit_button("Login")
-            if submitted:
-                if USERS.get(username) == password:
-                    st.session_state["authenticated"] = True
-                    st.session_state["user"] = username
-                    st.experimental_rerun()
-                else:
-                    st.error("Invalid credentials", icon="🚫")
-    st.markdown(
-        """
-        <div style="max-width: 800px; margin: 2rem auto; padding: 0 2rem;">
-            <h2>About Elirum</h2>
-            <p>
-                Elirum is a cutting-edge analytics platform that harnesses advanced
-                computer vision algorithms to detect stress, nervousness and behavioural
-                cues during interviews. By analysing subtle facial expressions and
-                body language, Elirum helps recruiters make more informed, data-driven
-                decisions while giving candidates constructive feedback. Upload
-                your interview video to generate a comprehensive stress timeline, view
-                flagged moments and download a professional report—all within a
-                sleek, modern interface.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # The landing page intentionally omits the sign‑in form and business description to
+    # allow the hero section to occupy the full viewport.  A single login
+    # button below the hero allows the user to enter the application
+    # immediately without scrolling.
+    st.write("\n")
+    if st.button("Login", key="landing_enter_button"):
+        # Bypass the authentication flow and mark the user as authenticated.
+        st.session_state["authenticated"] = True
+        st.session_state["user"] = "guest"
+        st.experimental_rerun()
 
 # Initialize authentication state
 if "authenticated" not in st.session_state:
