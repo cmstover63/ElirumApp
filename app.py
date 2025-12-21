@@ -280,27 +280,28 @@ def show_landing_page():
                 color: {ACCENT_COLOR};
                 font-size: 1.1rem;
             }}
-                /* Style the login button on the main hero page similar to the original design:
-                   small button with a white border and white text, positioned next to the logo. */
                 /* Style the login button on the hero page.  Position it near the top
                    right of the hero, aligned with the logo and sized similarly.
-                   The button has a thin white border with a dark translucent fill. */
+                   The button uses a prominent white border and larger height so it
+                   remains visible over the dark background. */
                 div[data-testid="stButton"] > button {{
                     position: absolute;
                     top: 50px;
                     right: 50px;
                     z-index: 1001;
-                    border: 1px solid #FFFFFF;
-                    border-radius: 4px;
-                    background: rgba(0,0,0,0.35);
+                    border: 2px solid #FFFFFF;
+                    border-radius: 6px;
+                    background: rgba(0, 0, 0, 0.5);
                     color: #FFFFFF;
                     font-weight: 600;
-                    height: 60px;
-                    padding: 0 32px;
-                    font-size: 1rem;
+                    height: 80px;
+                    line-height: 80px;
+                    padding: 0 48px;
+                    font-size: 1.1rem;
                 }}
                 div[data-testid="stButton"] > button:hover {{
-                    background: rgba(255,255,255,0.2);
+                    background: rgba(255, 255, 255, 0.25);
+                    color: #000000;
                 }}
         </style>
         <div class="hero">
