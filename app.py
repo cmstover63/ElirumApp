@@ -287,8 +287,10 @@ def show_landing_page():
             }}
                 /* Style the login button on the hero page.  Position it mid‑page on the right
                    and size it proportional to the logo. Use a translucent background so it
-                   stands out without overpowering the hero image. */
-                div[data-testid="stButton"] > button {{
+                   stands out without overpowering the hero image.  Target the Streamlit button
+                   with the generic .stButton class rather than relying on data‑testids which can
+                   vary across versions. */
+                .stButton > button {{
                     position: absolute;
                     top: 50%;
                     right: 60px;
@@ -305,7 +307,7 @@ def show_landing_page():
                     font-size: 1.05rem;
                     cursor: pointer;
                 }}
-                div[data-testid="stButton"] > button:hover {{
+                .stButton > button:hover {{
                     background: rgba(255, 255, 255, 0.2);
                     color: #000000;
                 }}
