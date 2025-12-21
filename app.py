@@ -290,27 +290,33 @@ def show_landing_page():
                    stands out without overpowering the hero image.  Target the Streamlit button
                    with the generic .stButton class rather than relying on data‑testids which can
                    vary across versions. */
-                .stButton > button {{
+                /* Style hero page login button (landing_enter_button) with a light, high‑contrast look
+                   that stands out against the dark hero background.  Position it mid‑page on the right.
+                   Apply a subtle box shadow and coloured border to tie into the brand palette. */
+                .stButton > button {
                     position: absolute;
                     top: 50%;
                     right: 60px;
                     transform: translateY(-50%);
                     z-index: 1001;
-                    border: 2px solid #FFFFFF;
-                    border-radius: 8px;
-                    background: rgba(0, 0, 0, 0.5);
-                    color: #FFFFFF;
-                    font-weight: 600;
                     height: 70px;
                     line-height: 70px;
                     padding: 0 36px;
+                    border-radius: 10px;
+                    border: 2px solid {SECONDARY_COLOR};
+                    background: rgba(255, 255, 255, 0.85);
+                    color: {PRIMARY_COLOR};
+                    font-family: 'Segoe UI', 'Roboto', sans-serif;
+                    font-weight: 600;
                     font-size: 1.05rem;
                     cursor: pointer;
-                }}
-                .stButton > button:hover {{
-                    background: rgba(255, 255, 255, 0.2);
-                    color: #000000;
-                }}
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                }
+                .stButton > button:hover {
+                    background: rgba(255, 255, 255, 1.0);
+                    border-color: {ACCENT_COLOR};
+                    color: {PRIMARY_COLOR};
+                }
         </style>
         <div class="hero">
             <div class="nav-bar">
@@ -362,10 +368,9 @@ st.markdown(
     .stApp {{
         background-color: {BACKGROUND_COLOR};
     }}
-    .stButton > button {{
-        background-color: {PRIMARY_COLOR};
-        color: white;
-    }}
+    /* Buttons on analysis pages will adopt the primary colour by default when not
+       overridden on the landing page.  We avoid setting a global rule for .stButton
+       here so that the hero page login button styling remains intact. */
     </style>
     """,
     unsafe_allow_html=True
