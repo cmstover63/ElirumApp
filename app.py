@@ -124,13 +124,16 @@ def show_landing_page():
                 body, html, .stApp {{ margin: 0; padding: 0; }}
                 .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
                     .login-page {{
-                         /* Use the hero background for the login page so the image fills the
-                            entire viewport instead of a plain white background. */
+                         /* Use the hero background for the login page and centre the login card
+                            both vertically and horizontally.  Remove white borders by filling
+                            the entire viewport. */
                          height: 100vh;
+                         width: 100vw;
                          background-image: url('data:image/png;base64,{hero_data}');
                          background-size: cover;
                          background-position: center;
                          display: flex;
+                         flex-direction: column;
                          justify-content: center;
                          align-items: center;
                      }}
@@ -141,6 +144,9 @@ def show_landing_page():
                     width: 320px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
                     color: #333;
+                    /* Shift the card slightly upward so it appears closer to the middle
+                       of the screen rather than the bottom. */
+                    transform: translateY(-100px);
                 }}
                 .login-card h2 {{ margin-bottom: 1rem; color: #333; }}
                 .login-card input {{
@@ -249,18 +255,21 @@ def show_landing_page():
             }}
                 /* Style the login button on the main hero page similar to the original design:
                    small button with a white border and white text, positioned next to the logo. */
+                /* Style the login button on the hero page.  Position it near the top
+                   right of the hero, aligned with the logo and sized similarly.
+                   The button has a thin white border with a dark translucent fill. */
                 div[data-testid="stButton"] > button {{
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
+                    position: absolute;
+                    top: 50px;
+                    right: 50px;
                     z-index: 1001;
-                    /* Match the button style in the provided screenshot: thin white border and dark translucent background */
                     border: 1px solid #FFFFFF;
                     border-radius: 4px;
                     background: rgba(0,0,0,0.35);
                     color: #FFFFFF;
                     font-weight: 600;
-                    padding: 8px 20px;
+                    height: 60px;
+                    padding: 0 32px;
                     font-size: 1rem;
                 }}
                 div[data-testid="stButton"] > button:hover {{
