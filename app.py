@@ -144,9 +144,9 @@ def show_landing_page():
                     width: 320px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
                     color: #333;
-                    /* Shift the card slightly upward so it appears closer to the middle
-                       of the screen rather than the bottom. */
-                    transform: translateY(-100px);
+                    /* Move the login form further up on the page to avoid sitting near the bottom */
+                    transform: translateY(-200px);
+                    font-family: 'Segoe UI', 'Roboto', sans-serif;
                 }}
                 .login-card h2 {{ margin-bottom: 1rem; color: #333; }}
                 .login-card input {{
@@ -227,7 +227,8 @@ def show_landing_page():
                 background-size: cover;
                 background-position: center;
                 color: white;
-                font-family: 'Arial', sans-serif;
+                /* Use modern, professional fonts for a cleaner look */
+                font-family: 'Segoe UI', 'Roboto', sans-serif;
             }}
                 .hero-overlay {{
                      position: absolute;
@@ -245,15 +246,18 @@ def show_landing_page():
             .tagline {{
                 /* Use the accent colour for the main tagline to create a strong
                    visual focal point.  Increase the font size slightly for
-                   greater impact on the hero page. */
+                   greater impact on the hero page. Use modern fonts for a professional look. */
                 color: {ACCENT_COLOR};
+                font-family: 'Segoe UI', 'Roboto', sans-serif;
                 font-size: 3.5rem;
                 font-weight: 700;
                 line-height: 1.2;
                 margin-bottom: 1rem;
             }}
             .subtagline {{
-                font-size: 1.3rem;
+                /* Secondary tagline styling */
+                font-family: 'Segoe UI', 'Roboto', sans-serif;
+                font-size: 1.25rem;
                 line-height: 1.4;
                 max-width: 600px;
             }}
@@ -268,7 +272,8 @@ def show_landing_page():
             }}
             .feature-list li {{
                 margin-bottom: 0.7rem;
-                font-size: 1.1rem;
+                font-family: 'Segoe UI', 'Roboto', sans-serif;
+                font-size: 1.15rem;
                 line-height: 1.3;
                 position: relative;
                 padding-left: 1.6rem;
@@ -280,27 +285,28 @@ def show_landing_page():
                 color: {ACCENT_COLOR};
                 font-size: 1.1rem;
             }}
-                /* Style the login button on the hero page.  Position it near the top
-                   right of the hero, aligned with the logo and sized similarly.
-                   The button uses a prominent white border and larger height so it
-                   remains visible over the dark background. */
+                /* Style the login button on the hero page.  Position it mid‑page on the right
+                   and size it proportional to the logo. Use a translucent background so it
+                   stands out without overpowering the hero image. */
                 div[data-testid="stButton"] > button {{
                     position: absolute;
-                    top: 50px;
-                    right: 50px;
+                    top: 50%;
+                    right: 60px;
+                    transform: translateY(-50%);
                     z-index: 1001;
                     border: 2px solid #FFFFFF;
-                    border-radius: 6px;
+                    border-radius: 8px;
                     background: rgba(0, 0, 0, 0.5);
                     color: #FFFFFF;
                     font-weight: 600;
-                    height: 80px;
-                    line-height: 80px;
-                    padding: 0 48px;
-                    font-size: 1.1rem;
+                    height: 70px;
+                    line-height: 70px;
+                    padding: 0 36px;
+                    font-size: 1.05rem;
+                    cursor: pointer;
                 }}
                 div[data-testid="stButton"] > button:hover {{
-                    background: rgba(255, 255, 255, 0.25);
+                    background: rgba(255, 255, 255, 0.2);
                     color: #000000;
                 }}
         </style>
