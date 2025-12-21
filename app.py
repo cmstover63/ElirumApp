@@ -243,7 +243,11 @@ def show_landing_page():
                      padding-right: 4%; /* reduce side padding to allow more of the background to show */
                  }}
             .tagline {{
-                font-size: 3rem;
+                /* Use the accent colour for the main tagline to create a strong
+                   visual focal point.  Increase the font size slightly for
+                   greater impact on the hero page. */
+                color: {ACCENT_COLOR};
+                font-size: 3.5rem;
                 font-weight: 700;
                 line-height: 1.2;
                 margin-bottom: 1rem;
@@ -252,6 +256,29 @@ def show_landing_page():
                 font-size: 1.3rem;
                 line-height: 1.4;
                 max-width: 600px;
+            }}
+            /* Feature list styling for hero bullets */
+            .feature-list {{
+                margin-top: 1.5rem;
+            }}
+            .feature-list ul {{
+                list-style: none;
+                padding-left: 0;
+                margin: 0;
+            }}
+            .feature-list li {{
+                margin-bottom: 0.7rem;
+                font-size: 1.1rem;
+                line-height: 1.3;
+                position: relative;
+                padding-left: 1.6rem;
+            }}
+            .feature-list li::before {{
+                content: "\2714"; /* checkmark bullet */
+                position: absolute;
+                left: 0;
+                color: {ACCENT_COLOR};
+                font-size: 1.1rem;
             }}
                 /* Style the login button on the main hero page similar to the original design:
                    small button with a white border and white text, positioned next to the logo. */
@@ -283,6 +310,13 @@ def show_landing_page():
             <div class="hero-overlay">
                 <div class="tagline">Don't second guess</div>
                 <div class="subtagline">Experience the leading AI‑powered system for behavioural and nervousness detection.</div>
+                <div class="feature-list">
+                    <ul>
+                        <li>AI‑driven facial and body landmark analysis</li>
+                        <li>Real‑time quantification of stress and nervousness</li>
+                        <li>Secure analytics tailored for law‑enforcement professionals</li>
+                    </ul>
+                </div>
             </div>
         </div>
         """,
