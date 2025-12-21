@@ -340,22 +340,42 @@ with header_title_col:
     st.caption("Behavioral Stress & Nervousness Detection System")
 
 # -------------------------
-# SIDEBAR
+# MAIN UPLOAD SECTION
 # -------------------------
-st.sidebar.header("Instructions")
-st.sidebar.markdown(
+# Remove the collapsed sidebar toggle so the arrow does not appear after login.
+st.markdown(
     """
-    1. Upload interview video  
-    2. Behavioral analysis runs automatically  
-    3. Review stress timeline  
-    4. Download official PDF report  
-    """
+    <style>
+    /* Hide the collapsed sidebar control that appears on the left edge */
+    [data-testid="collapsedControl"] {
+        display: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-uploaded_file = st.sidebar.file_uploader(
-    "Upload Video",
-    type=["mp4", "mov", "avi"]
-)
+# Place instructions and upload field directly on the main page so users do not
+# need to expand the sidebar.  Use columns to separate the instructions and
+# uploader for a balanced layout.  The file uploader returns a file handle
+# when a video is selected.
+inst_col, upload_col = st.columns([2, 1])
+with inst_col:
+    st.subheader("Instructions")
+    st.markdown(
+        """
+        1. Upload interview video  
+        2. Behavioral analysis runs automatically  
+        3. Review stress timeline  
+        4. Download official PDF report  
+        """
+    )
+with upload_col:
+    uploaded_file = st.file_uploader(
+        "Upload Video",
+        type=["mp4", "mov", "avi"],
+        key="main_upload"
+    )
 
 # -------------------------
 # PDF GENERATOR
