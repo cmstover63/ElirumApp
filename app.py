@@ -165,6 +165,11 @@ def show_landing_page():
                     border: none;
                     border-radius: 4px;
                     font-weight: 600;
+                    /* Override the fixed positioning applied to the landing page button */
+                    position: relative !important;
+                    top: auto !important;
+                    right: auto !important;
+                    z-index: auto !important;
                 }}
                 .login-card button:hover {{
                     background: #055E66;
@@ -260,9 +265,12 @@ def show_landing_page():
             color: {ACCENT_COLOR};
             font-size: 1.2rem;
         }}
-        /* Style the login button inside the hero */
-        .hero .stButton > button {{
-            position: absolute;
+        /* Style the login button on the landing page.  The button uses a fixed
+           position relative to the viewport so it remains visible at the top‑right.
+           We target all Streamlit buttons on this page since there is only
+           one button (the login button) when the user is unauthenticated. */
+        .stButton > button {{
+            position: fixed;
             top: 40px;
             right: 40px;
             padding: 10px 24px;
@@ -272,8 +280,9 @@ def show_landing_page():
             background: rgba(0, 0, 0, 0.55);
             color: white;
             font-weight: 600;
+            z-index: 1001;
         }}
-        .hero .stButton > button:hover {{
+        .stButton > button:hover {{
             background: {PRIMARY_COLOR};
             color: white;
             border-color: {PRIMARY_COLOR};
