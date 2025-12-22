@@ -227,15 +227,17 @@ def show_landing_page():
             color: {ACCENT_COLOR};
             font-size: 1.2rem;
         }}
-        /* Style the hero login button.  Target only the first Streamlit button
+        /* Style the hero login button. Target only the first Streamlit button
            on the page (the hero login button) so other buttons are unaffected.
-           Position the button down and to the right relative to the top‑right
-           corner of the hero image using rem units so it remains visible on
-           mobile devices (roughly equivalent to 4 inches but responsive). */
+           Use fixed positioning so the button stays anchored relative to the
+           viewport rather than the page flow.  Drop the button 4 inches
+           down from the top of the viewport and 4 inches from the right
+           side.  This makes the button clearly visible on desktop screens
+           without interfering with the hero overlay. */
         .stButton:nth-of-type(1) > button {{
-            position: absolute;
-            top: 4rem;
-            right: 4rem;
+            position: fixed;
+            top: 4in;
+            right: 4in;
             padding: 0.75rem 1.5rem;
             font-size: 1rem;
             border-radius: 8px;
@@ -243,6 +245,7 @@ def show_landing_page():
             border: 2px solid {PRIMARY_COLOR};
             color: #ffffff;
             font-weight: 600;
+            z-index: 1000;
         }}
         .stButton:nth-of-type(1) > button:hover {{
             background: {ACCENT_COLOR};
