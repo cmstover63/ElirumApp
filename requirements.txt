@@ -4,3 +4,5 @@ numpy
 fpdf
 Pillow
 pandas
+supabase
+python-dotenv
