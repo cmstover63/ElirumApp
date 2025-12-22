@@ -293,7 +293,7 @@ def show_landing_page():
                 /* Style hero page login button (landing_enter_button) with a light, high‑contrast look
                    that stands out against the dark hero background.  Position it mid‑page on the right.
                    Apply a subtle box shadow and coloured border to tie into the brand palette. */
-                .stButton > button {
+                .stButton > button {{
                     position: absolute;
                     top: 50%;
                     right: 60px;
@@ -311,12 +311,12 @@ def show_landing_page():
                     font-size: 1.05rem;
                     cursor: pointer;
                     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-                }
-                .stButton > button:hover {
+                }}
+                .stButton > button:hover {{
                     background: rgba(255, 255, 255, 1.0);
                     border-color: {ACCENT_COLOR};
                     color: {PRIMARY_COLOR};
-                }
+                }}
         </style>
         <div class="hero">
             <div class="nav-bar">
