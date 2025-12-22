@@ -96,11 +96,15 @@ USERS = {
 }
 
 def show_landing_page():
-    """Render a high‑impact landing page with a hero section inspired by the user's reference.
+    """Render the Elirum landing page with hero section and login support.
 
-    The landing page now uses a dark hero background image and a new navigation bar.
+    This implementation avoids mixing custom HTML with Streamlit widgets by
+    using Streamlit's built-in layout primitives for the login page.  When
+    the login flag is set in session state, the page renders a centred
+    sign-in form on a white background and stops further rendering.
+    Otherwise, it displays the hero section with tagline and features.
     """
-    # Encode images as Base64 for embedding in HTML
+    # Encode images for embedding in HTML/CSS
     try:
         with open("hero_bg.png", "rb") as bg_file:
             hero_data = base64.b64encode(bg_file.read()).decode("utf-8")
@@ -112,95 +116,49 @@ def show_landing_page():
     except FileNotFoundError:
         logo_data = ""
 
-    # If login page flag is active, display dedicated login page instead of hero.
-    # This page uses the same hero background but centres a login card containing
-    # username and password fields.  Cancelling returns users to the landing page.
+    # Handle the login page: centre login form on white background
     if st.session_state.get("login_page", False):
-        # Render a clean, white login page reminiscent of the original home page.  The
-        # page uses a plain white background and a light card for the sign‑in form.
+        # Minimal CSS to remove default padding/margins and set white background
         st.markdown(
-            f"""
+            """
             <style>
-                body, html, .stApp {{ margin: 0; padding: 0; }}
-                .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
-                    .login-page {{
-                         /* Render a clean white background on the login page.  The entire
-                            viewport is filled with white so the hero image does not appear.
-                            The login card is centred both vertically and horizontally. */
-                         height: 100vh;
-                         width: 100vw;
-                         background-color: #FFFFFF;
-                         display: flex;
-                         flex-direction: column;
-                         justify-content: center;
-                         align-items: center;
-                     }}
-                .login-card {{
-                    background: #FFFFFF;
-                    padding: 2rem;
-                    border-radius: 8px;
-                    width: 320px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-                    color: #333;
-                    /* Do not translate the card vertically; flexbox will centre it. */
-                    transform: none;
-                    font-family: 'Segoe UI', 'Roboto', sans-serif;
-                }}
-                .login-card h2 {{ margin-bottom: 1rem; color: #333; }}
-                .login-card input {{
-                    width: 100%;
-                    padding: 0.5rem;
-                    margin-bottom: 1rem;
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                    color: #333;
-                }}
-                .login-card button {{
-                    width: 100%;
-                    padding: 0.6rem;
-                    background: {PRIMARY_COLOR};
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: 600;
-                    /* Override the fixed positioning applied to the landing page button */
-                    position: relative !important;
-                    top: auto !important;
-                    right: auto !important;
-                    z-index: auto !important;
-                }}
-                .login-card button:hover {{
-                    background: #055E66;
-                }}
+            body, html, .stApp {
+                margin: 0;
+                padding: 0;
+                background-color: #FFFFFF;
+            }
+            .block-container {
+                margin: 0;
+                padding: 0;
+                max-width: 100%;
+            }
             </style>
-            <div class="login-page">
-                <div class="login-card">
             """,
             unsafe_allow_html=True,
         )
-        # Larger logo on the login page for branding
-        st.image(LOGO_PATH, width=180)
-        st.markdown("<h2>Sign In</h2>", unsafe_allow_html=True)
-        username = st.text_input("Username", key="login_page_user")
-        password = st.text_input("Password", type="password", key="login_page_pass")
-        if st.button("Sign In", key="login_page_signin"):
-            if username in USERS and USERS[username] == password:
-                st.session_state["authenticated"] = True
-                st.session_state["user"] = username
-                st.session_state["login_page"] = False
-                try:
-                    st.rerun()
-                except Exception:
-                    st.experimental_rerun()
-            else:
-                st.error("Invalid credentials. Please try again.")
-        st.markdown("</div></div>", unsafe_allow_html=True)
-        return
+        # Vertical spacing
+        st.markdown("<br><br><br>", unsafe_allow_html=True)
+        # Use columns to centre the login card
+        col_left, col_center, col_right = st.columns([1, 2, 1])
+        with col_center:
+            st.image(LOGO_PATH, width=180)
+            st.markdown("<h2>Sign In</h2>", unsafe_allow_html=True)
+            username = st.text_input("Username", key="login_page_user")
+            password = st.text_input("Password", type="password", key="login_page_pass")
+            if st.button("Sign In", key="login_page_signin"):
+                if username in USERS and USERS[username] == password:
+                    st.session_state["authenticated"] = True
+                    st.session_state["user"] = username
+                    st.session_state["login_page"] = False
+                    try:
+                        st.rerun()
+                    except Exception:
+                        st.experimental_rerun()
+                else:
+                    st.error("Invalid credentials. Please try again.")
+        st.stop()
 
-    # Always show a login button at the top of the landing page.  This makes it
-    # easy for users to access the login form without scrolling.  When clicked,
-    # the button sets the login_page flag and reruns the app to render the login
-    # page immediately.
+    # Login button on the hero page
     top_login_clicked = st.button("Login", key="landing_enter_button")
     if top_login_clicked:
         st.session_state["login_page"] = True
@@ -209,21 +167,15 @@ def show_landing_page():
         except Exception:
             st.experimental_rerun()
 
-    # Render hero page when not in login mode.  Display the logo, tagline and key features
-    # centred on the page with a dark overlay on top of the background image.  The login
-    # button appears below the description for easy access.
-    # Render the hero section with an integrated login button.  The hero fills the
-    # entire viewport and contains a semi‑transparent overlay for the logo,
-    # tagline and bullet points.  A login button is placed in the top‑right
-    # corner of the hero and styled to contrast against the dark background.
+    # Hero section CSS and markup
     st.markdown(
         f"""
         <style>
-        /* Reset margins and padding on the page and container elements */
+        /* Reset margins and padding */
         body, html, .stApp {{ margin: 0; padding: 0; }}
         .block-container {{ padding: 0; margin: 0; max-width: 100%; width: 100%; }}
 
-        /* Hero container styles */
+        /* Hero container */
         .hero {{
             position: relative;
             width: 100%;
@@ -238,7 +190,7 @@ def show_landing_page():
             font-family: 'Segoe UI', 'Roboto', sans-serif;
             overflow: hidden;
         }}
-        /* Overlay box containing logo, tagline and features */
+        /* Overlay box */
         .hero .overlay {{
             background: rgba(0, 0, 0, 0.55);
             padding: 3rem 4rem;
@@ -275,11 +227,7 @@ def show_landing_page():
             color: {ACCENT_COLOR};
             font-size: 1.2rem;
         }}
-        /* Style the login button on the landing page.  The button is displayed
-           within the layout flow rather than using a fixed position.  This
-           ensures it remains visible on all devices without being hidden
-           behind mobile browser chrome.  The border and colors contrast
-           against the dark hero background. */
+        /* Style the login button on the landing page */
         .stButton > button {{
             padding: 10px 24px;
             font-size: 1rem;
@@ -310,7 +258,7 @@ def show_landing_page():
         """,
         unsafe_allow_html=True,
     )
-    # Close the hero div after rendering the overlay
+    # Close the hero div
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Initialize authentication state
