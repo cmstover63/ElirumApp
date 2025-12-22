@@ -144,8 +144,10 @@ def show_landing_page():
                     width: 320px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
                     color: #333;
-                    /* Move the login form further up on the page to avoid sitting near the bottom */
-                    transform: translateY(-200px);
+                    /* Centre the login form vertically within the viewport.  We remove the
+                       previous translateY offset so the card naturally centres via the
+                       flexbox settings on .login-page. */
+                    transform: none;
                     font-family: 'Segoe UI', 'Roboto', sans-serif;
                 }}
                 .login-card h2 {{ margin-bottom: 1rem; color: #333; }}
