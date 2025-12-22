@@ -144,10 +144,10 @@ def show_landing_page():
                     width: 320px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
                     color: #333;
-                    /* Centre the login form vertically within the viewport.  We remove the
-                       previous translateY offset so the card naturally centres via the
-                       flexbox settings on .login-page. */
-                    transform: none;
+                    /* Move the login card upward so it sits higher on the page.  A negative
+                       translateY value shifts the element up relative to the centre of the
+                       viewport.  Adjust this value as needed for a balanced look. */
+                    transform: translateY(-300px);
                     font-family: 'Segoe UI', 'Roboto', sans-serif;
                 }}
                 .login-card h2 {{ margin-bottom: 1rem; color: #333; }}
