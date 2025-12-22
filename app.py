@@ -197,6 +197,18 @@ def show_landing_page():
         st.markdown("</div></div>", unsafe_allow_html=True)
         return
 
+    # Always show a login button at the top of the landing page.  This makes it
+    # easy for users to access the login form without scrolling.  When clicked,
+    # the button sets the login_page flag and reruns the app to render the login
+    # page immediately.
+    top_login_clicked = st.button("Login", key="landing_enter_button")
+    if top_login_clicked:
+        st.session_state["login_page"] = True
+        try:
+            st.rerun()
+        except Exception:
+            st.experimental_rerun()
+
     # Render hero page when not in login mode.  Display the logo, tagline and key features
     # centred on the page with a dark overlay on top of the background image.  The login
     # button appears below the description for easy access.
@@ -263,27 +275,24 @@ def show_landing_page():
             color: {ACCENT_COLOR};
             font-size: 1.2rem;
         }}
-        /* Style the login button on the landing page.  The button uses a fixed
-           position relative to the viewport so it remains visible at the top‑right.
-           We target all Streamlit buttons on this page since there is only
-           one button (the login button) when the user is unauthenticated. */
+        /* Style the login button on the landing page.  The button is displayed
+           within the layout flow rather than using a fixed position.  This
+           ensures it remains visible on all devices without being hidden
+           behind mobile browser chrome.  The border and colors contrast
+           against the dark hero background. */
         .stButton > button {{
-            position: fixed;
-            top: 40px;
-            right: 40px;
             padding: 10px 24px;
             font-size: 1rem;
             border-radius: 8px;
-            border: 2px solid white;
-            background: rgba(0, 0, 0, 0.55);
+            background: {ACCENT_COLOR};
+            border: 2px solid {ACCENT_COLOR};
             color: white;
             font-weight: 600;
-            z-index: 1001;
         }}
         .stButton > button:hover {{
             background: {PRIMARY_COLOR};
-            color: white;
             border-color: {PRIMARY_COLOR};
+            color: white;
         }}
         </style>
 
@@ -301,17 +310,8 @@ def show_landing_page():
         """,
         unsafe_allow_html=True,
     )
-    # Add the login button inside the hero.  The CSS above positions the button
-    # absolutely relative to the .hero container (top‑right corner).
-    login_clicked = st.button("Login", key="landing_enter_button")
-    # Close the hero div
+    # Close the hero div after rendering the overlay
     st.markdown("</div>", unsafe_allow_html=True)
-    if login_clicked:
-        st.session_state["login_page"] = True
-        try:
-            st.rerun()
-        except Exception:
-            st.experimental_rerun()
 
 # Initialize authentication state
 if "authenticated" not in st.session_state:
