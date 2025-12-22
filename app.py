@@ -227,26 +227,27 @@ def show_landing_page():
             color: {ACCENT_COLOR};
             font-size: 1.2rem;
         }}
-        /* Style the login button on the landing page.  Use nth-of-type to
-           target only the first button (the hero login button) so that
-           buttons on other pages are not affected.  Move the button
-           downward and rightward by 4 inches (approx 4in). */
+        /* Style the hero login button.  Target only the first Streamlit button
+           on the page (the hero login button) so other buttons are unaffected.
+           Position the button down and to the right relative to the top‑right
+           corner of the hero image using rem units so it remains visible on
+           mobile devices (roughly equivalent to 4 inches but responsive). */
         .stButton:nth-of-type(1) > button {{
             position: absolute;
-            top: 4in;
-            right: 4in;
-            padding: 10px 24px;
+            top: 4rem;
+            right: 4rem;
+            padding: 0.75rem 1.5rem;
             font-size: 1rem;
             border-radius: 8px;
-            background: {ACCENT_COLOR};
-            border: 2px solid {ACCENT_COLOR};
-            color: white;
+            background: {PRIMARY_COLOR};
+            border: 2px solid {PRIMARY_COLOR};
+            color: #ffffff;
             font-weight: 600;
         }}
         .stButton:nth-of-type(1) > button:hover {{
-            background: {PRIMARY_COLOR};
-            border-color: {PRIMARY_COLOR};
-            color: white;
+            background: {ACCENT_COLOR};
+            border-color: {ACCENT_COLOR};
+            color: #ffffff;
         }}
         </style>
 
