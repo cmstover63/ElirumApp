@@ -194,153 +194,112 @@ def show_landing_page():
         st.markdown("</div></div>", unsafe_allow_html=True)
         return
 
-    # Compose HTML for hero page when not in login mode.  Adjust the nav bar
-    # position downward so that the logo and login button appear slightly
-    # below the top edge.  Remove margin/padding to eliminate white borders.
+    # Render hero page when not in login mode.  Display the logo, tagline and key features
+    # centred on the page with a dark overlay on top of the background image.  The login
+    # button appears below the description for easy access.
+    # Render the hero section with an integrated login button.  The hero fills the
+    # entire viewport and contains a semi‑transparent overlay for the logo,
+    # tagline and bullet points.  A login button is placed in the top‑right
+    # corner of the hero and styled to contrast against the dark background.
     st.markdown(
         f"""
         <style>
-            body, html, .stApp {{ margin: 0; padding: 0; }}
-            .block-container {{
-                padding: 0;
-                margin: 0;
-                max-width: 100%;
-                width: 100%;
-            }}
-            .nav-bar {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 1rem 2rem;
-                position: absolute;
-                top: 50px; /* move nav bar further down */
-                left: 0;
-                right: 0;
-                z-index: 1000;
-            }}
-                 /* Resize the logo in the nav bar to a reasonable height */
-                 .nav-bar img {{ height: 80px; }}
-            .hero {{
-                position: relative;
-                height: 100vh;
-                background-image: url('data:image/png;base64,{hero_data}');
-                background-size: cover;
-                background-position: center;
-                color: white;
-                /* Use modern, professional fonts for a cleaner look */
-                font-family: 'Segoe UI', 'Roboto', sans-serif;
-            }}
-                .hero-overlay {{
-                     position: absolute;
-                     top: 0;
-                     left: 0;
-                     width: 100%;
-                     height: 100%;
-                     background: rgba(0, 0, 0, 0.45);
-                     display: flex;
-                     flex-direction: column;
-                     justify-content: center;
-                     padding-left: 4%;
-                     padding-right: 4%; /* reduce side padding to allow more of the background to show */
-                 }}
-            .tagline {{
-                /* Use the accent colour for the main tagline to create a strong
-                   visual focal point.  Increase the font size slightly for
-                   greater impact on the hero page. Use modern fonts for a professional look. */
-                color: {ACCENT_COLOR};
-                font-family: 'Segoe UI', 'Roboto', sans-serif;
-                font-size: 3.5rem;
-                font-weight: 700;
-                line-height: 1.2;
-                margin-bottom: 1rem;
-            }}
-            .subtagline {{
-                /* Secondary tagline styling */
-                font-family: 'Segoe UI', 'Roboto', sans-serif;
-                font-size: 1.25rem;
-                line-height: 1.4;
-                max-width: 600px;
-            }}
-            /* Feature list styling for hero bullets */
-            .feature-list {{
-                margin-top: 1.5rem;
-            }}
-            .feature-list ul {{
-                list-style: none;
-                padding-left: 0;
-                margin: 0;
-            }}
-            .feature-list li {{
-                margin-bottom: 0.7rem;
-                font-family: 'Segoe UI', 'Roboto', sans-serif;
-                font-size: 1.15rem;
-                line-height: 1.3;
-                position: relative;
-                padding-left: 1.6rem;
-            }}
-            .feature-list li::before {{
-                content: "\2714"; /* checkmark bullet */
-                position: absolute;
-                left: 0;
-                color: {ACCENT_COLOR};
-                font-size: 1.1rem;
-            }}
-                /* Style the login button on the hero page.  Position it mid‑page on the right
-                   and size it proportional to the logo. Use a translucent background so it
-                   stands out without overpowering the hero image.  Target the Streamlit button
-                   with the generic .stButton class rather than relying on data‑testids which can
-                   vary across versions. */
-                /* Style hero page login button (landing_enter_button) with a light, high‑contrast look
-                   that stands out against the dark hero background.  Position it mid‑page on the right.
-                   Apply a subtle box shadow and coloured border to tie into the brand palette. */
-                .stButton > button {{
-                    /* Position the login button near the top‑right of the hero so it appears
-                       inside the navigation bar area.  Use a transparent dark background and
-                       white border/text for contrast against the hero image. */
-                    position: absolute;
-                    top: 60px;
-                    right: 60px;
-                    z-index: 1001;
-                    padding: 0.4rem 1.2rem;
-                    border-radius: 6px;
-                    border: 2px solid #FFFFFF;
-                    background: rgba(0, 0, 0, 0.4);
-                    color: #FFFFFF;
-                    font-family: 'Segoe UI', 'Roboto', sans-serif;
-                    font-weight: 600;
-                    font-size: 1.05rem;
-                    cursor: pointer;
-                    text-transform: none;
-                    transition: background 0.2s, color 0.2s;
-                }}
-                .stButton > button:hover {{
-                    background: rgba(255, 255, 255, 0.2);
-                    color: #FFFFFF;
-                    border-color: {ACCENT_COLOR};
-                }}
+        /* Reset margins and padding on the page and container elements */
+        body, html, .stApp {{ margin: 0; padding: 0; }}
+        .block-container {{ padding: 0; margin: 0; max-width: 100%; width: 100%; }}
+
+        /* Hero container styles */
+        .hero {{
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background-image: url('data:image/png;base64,{hero_data}');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            overflow: hidden;
+        }}
+        /* Overlay box containing logo, tagline and features */
+        .hero .overlay {{
+            background: rgba(0, 0, 0, 0.55);
+            padding: 3rem 4rem;
+            border-radius: 8px;
+            max-width: 900px;
+        }}
+        .hero .overlay h1 {{
+            margin-top: 0;
+            color: {ACCENT_COLOR};
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }}
+        .hero .overlay h3 {{
+            font-size: 1.3rem;
+            margin-top: 0.5rem;
+            margin-bottom: 1.5rem;
+        }}
+        .hero .overlay ul {{
+            list-style: none;
+            padding-left: 0;
+            margin: 0 0 2rem 0;
+        }}
+        .hero .overlay li {{
+            margin-bottom: 0.7rem;
+            font-size: 1.15rem;
+            position: relative;
+            padding-left: 1.8rem;
+        }}
+        .hero .overlay li::before {{
+            content: "\2714";
+            position: absolute;
+            left: 0;
+            color: {ACCENT_COLOR};
+            font-size: 1.2rem;
+        }}
+        /* Style the login button inside the hero */
+        .hero .stButton > button {{
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            padding: 10px 24px;
+            font-size: 1rem;
+            border-radius: 8px;
+            border: 2px solid white;
+            background: rgba(0, 0, 0, 0.55);
+            color: white;
+            font-weight: 600;
+        }}
+        .hero .stButton > button:hover {{
+            background: {PRIMARY_COLOR};
+            color: white;
+            border-color: {PRIMARY_COLOR};
+        }}
         </style>
+
         <div class="hero">
-            <div class="nav-bar">
-                <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" />
+            <div class="overlay">
+                <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" style="height:100px;margin-bottom:1rem;" />
+                <h1>Don't second guess</h1>
+                <h3>Experience the leading AI‑powered system for behavioural and nervousness detection.</h3>
+                <ul>
+                    <li>AI‑driven facial and body landmark analysis</li>
+                    <li>Real‑time quantification of stress and nervousness</li>
+                    <li>Secure analytics tailored for law‑enforcement professionals</li>
+                </ul>
             </div>
-            <div class="hero-overlay">
-                <div class="tagline">Don't second guess</div>
-                <div class="subtagline">Experience the leading AI‑powered system for behavioural and nervousness detection.</div>
-                <div class="feature-list">
-                    <ul>
-                        <li>AI‑driven facial and body landmark analysis</li>
-                        <li>Real‑time quantification of stress and nervousness</li>
-                        <li>Secure analytics tailored for law‑enforcement professionals</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
         """,
         unsafe_allow_html=True,
     )
-    # When the login button on the hero page is clicked, set the login page flag
-    # and re-run.  The dedicated login page will be displayed on the next run.
-    if st.button("Login", key="landing_enter_button"):
+    # Add the login button inside the hero.  The CSS above positions the button
+    # absolutely relative to the .hero container (top‑right corner).
+    login_clicked = st.button("Login", key="landing_enter_button")
+    # Close the hero div
+    st.markdown("</div>", unsafe_allow_html=True)
+    if login_clicked:
         st.session_state["login_page"] = True
         try:
             st.rerun()
