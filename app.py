@@ -227,8 +227,14 @@ def show_landing_page():
             color: {ACCENT_COLOR};
             font-size: 1.2rem;
         }}
-        /* Style the login button on the landing page */
-        .stButton > button {{
+        /* Style the login button on the landing page.  Use nth-of-type to
+           target only the first button (the hero login button) so that
+           buttons on other pages are not affected.  Move the button
+           downward and rightward by 4 inches (approx 4in). */
+        .stButton:nth-of-type(1) > button {{
+            position: absolute;
+            top: 4in;
+            right: 4in;
             padding: 10px 24px;
             font-size: 1rem;
             border-radius: 8px;
@@ -237,7 +243,7 @@ def show_landing_page():
             color: white;
             font-weight: 600;
         }}
-        .stButton > button:hover {{
+        .stButton:nth-of-type(1) > button:hover {{
             background: {PRIMARY_COLOR};
             border-color: {PRIMARY_COLOR};
             color: white;
