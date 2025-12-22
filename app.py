@@ -124,30 +124,26 @@ def show_landing_page():
                 body, html, .stApp {{ margin: 0; padding: 0; }}
                 .block-container {{ margin: 0; padding: 0; width: 100%; max-width: 100%; }}
                     .login-page {{
-                         /* Use the hero background for the login page and centre the login card
-                            both vertically and horizontally.  Remove white borders by filling
-                            the entire viewport. */
+                         /* Render a clean white background on the login page.  The entire
+                            viewport is filled with white so the hero image does not appear.
+                            The login card is centred both vertically and horizontally. */
                          height: 100vh;
                          width: 100vw;
-                         background-image: url('data:image/png;base64,{hero_data}');
-                         background-size: cover;
-                         background-position: center;
+                         background-color: #FFFFFF;
                          display: flex;
                          flex-direction: column;
                          justify-content: center;
                          align-items: center;
                      }}
                 .login-card {{
-                    background: #F9F9F9;
+                    background: #FFFFFF;
                     padding: 2rem;
                     border-radius: 8px;
                     width: 320px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
                     color: #333;
-                    /* Move the login card upward so it sits higher on the page.  A negative
-                       translateY value shifts the element up relative to the centre of the
-                       viewport.  Adjust this value as needed for a balanced look. */
-                    transform: translateY(-300px);
+                    /* Do not translate the card vertically; flexbox will centre it. */
+                    transform: none;
                     font-family: 'Segoe UI', 'Roboto', sans-serif;
                 }}
                 .login-card h2 {{ margin-bottom: 1rem; color: #333; }}
