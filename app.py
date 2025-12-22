@@ -294,28 +294,29 @@ def show_landing_page():
                    that stands out against the dark hero background.  Position it mid‑page on the right.
                    Apply a subtle box shadow and coloured border to tie into the brand palette. */
                 .stButton > button {{
+                    /* Position the login button near the top‑right of the hero so it appears
+                       inside the navigation bar area.  Use a transparent dark background and
+                       white border/text for contrast against the hero image. */
                     position: absolute;
-                    top: 50%;
+                    top: 60px;
                     right: 60px;
-                    transform: translateY(-50%);
                     z-index: 1001;
-                    height: 70px;
-                    line-height: 70px;
-                    padding: 0 36px;
-                    border-radius: 10px;
-                    border: 2px solid {SECONDARY_COLOR};
-                    background: rgba(255, 255, 255, 0.85);
-                    color: {PRIMARY_COLOR};
+                    padding: 0.4rem 1.2rem;
+                    border-radius: 6px;
+                    border: 2px solid #FFFFFF;
+                    background: rgba(0, 0, 0, 0.4);
+                    color: #FFFFFF;
                     font-family: 'Segoe UI', 'Roboto', sans-serif;
                     font-weight: 600;
                     font-size: 1.05rem;
                     cursor: pointer;
-                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                    text-transform: none;
+                    transition: background 0.2s, color 0.2s;
                 }}
                 .stButton > button:hover {{
-                    background: rgba(255, 255, 255, 1.0);
+                    background: rgba(255, 255, 255, 0.2);
+                    color: #FFFFFF;
                     border-color: {ACCENT_COLOR};
-                    color: {PRIMARY_COLOR};
                 }}
         </style>
         <div class="hero">
