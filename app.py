@@ -229,16 +229,20 @@ def show_landing_page():
         }}
         /* Style the hero login button. Target only the first Streamlit button
            on the page (the hero login button) so other buttons are unaffected.
-           Use fixed positioning so the button stays anchored relative to the
-           viewport rather than the page flow.  Drop the button 4 inches
-           down from the top of the viewport and 4 inches from the right
-           side.  This makes the button clearly visible on desktop screens
-           without interfering with the hero overlay. */
+           Position it fixed near the top‑right of the viewport for desktop.
+           The width is set to auto so the button fits its text instead of
+           stretching across the page.  Adjust padding and border to match
+           the branded style. */
         .stButton:nth-of-type(1) > button {{
             position: fixed;
-            top: 4in;
-            right: 4in;
-            padding: 0.75rem 1.5rem;
+            top: 80px;         /* roughly 1 inch from the top */
+            right: 60px;       /* roughly aligned to the right margin */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: auto;
+            min-width: 120px;
+            padding: 0.6rem 1.2rem;
             font-size: 1rem;
             border-radius: 8px;
             background: {PRIMARY_COLOR};
@@ -274,6 +278,9 @@ def show_landing_page():
 # Initialize authentication state
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
+    # Default page after login is the dashboard.  The page state is used
+    # to route between the dashboard and the invite page.
+    st.session_state["page"] = "dashboard"
 
 # If not authenticated, show the landing page and stop execution.  The
 # landing page includes a sign‑in form and a description of the business.
@@ -311,6 +318,31 @@ with header_logo_col:
 with header_title_col:
     st.title("Elirum Analyzer")
     st.caption("Behavioral Stress & Nervousness Detection System")
+
+    # Navigation for authenticated users.  Only display the invite option to
+    # administrators (identified here as the "admin" user).  When the
+    # button is clicked a flag is set in session state and the page is
+    # rerun.  The routing logic below will render the invite page and
+    # prevent the rest of the analysis UI from loading.
+    if st.session_state.get("authenticated"):
+        if st.session_state.get("user") == "admin":
+            if st.button("Invite New User", key="invite_nav_button"):
+                st.session_state["page"] = "invite"
+                # Immediately rerun to trigger the routing logic
+                try:
+                    st.rerun()
+                except Exception:
+                    st.experimental_rerun()
+
+# Route to pages based on the current session state.  If the admin has
+# selected the invite page, import and render it here.  After rendering
+# the invite page we halt further execution to avoid showing the
+# analysis interface.  The default page is "dashboard", which
+# corresponds to the main analysis UI below.
+if st.session_state.get("authenticated") and st.session_state.get("page") == "invite":
+    from pages import invite as invite_page
+    invite_page.app()
+    st.stop()
 
 # -------------------------
 # MAIN UPLOAD SECTION
