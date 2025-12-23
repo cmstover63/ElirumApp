@@ -643,6 +643,24 @@ if uploaded_file:
     # installed, the audio score will be zero.
     audio_features = extract_audio_features(tfile.name)
     audio_score = compute_audio_stress_score(audio_features)
+    # Determine an audio cue label based on the overall audio stress.  This label
+    # will be appended to flagged stress events and reported in the PDF.
+    # High vocal stress corresponds to elevated energy, pitch variability or
+    # zero‑crossing rate.  Moderate indicates some vocal strain, while mild
+    # vocal stress reflects subtle changes.  If the audio score is very low,
+    # no vocal cue will be added.
+    audio_cue_label = None
+    try:
+        if audio_score >= 0.7:
+            audio_cue_label = "High Vocal Stress"
+        elif audio_score >= 0.4:
+            audio_cue_label = "Moderate Vocal Stress"
+        elif audio_score >= 0.2:
+            audio_cue_label = "Mild Vocal Stress"
+        else:
+            audio_cue_label = None
+    except Exception:
+        audio_cue_label = None
 
     cap = cv2.VideoCapture(tfile.name)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
@@ -725,7 +743,13 @@ if uploaded_file:
     # score from saturating at 100% on videos with consistent motion.
     motion_baseline = None
     baseline_values = []
-    baseline_frames = 30  # number of processed frames to use for baseline
+    # Number of processed frames used to compute the baseline motion
+    # intensity.  A larger number reduces the impact of early frame
+    # noise and helps avoid saturating the stress score.  The default of
+    # 60 corresponds to roughly two seconds of video at 30fps (with
+    # frame skipping).  Feel free to adjust depending on typical video
+    # length and motion.
+    baseline_frames = 60
     last_logged_second = -1
     last_logged_cues = ""
 
@@ -785,10 +809,13 @@ if uploaded_file:
                 if motion_baseline is None and baseline_values:
                     # Compute baseline as average plus a small epsilon
                     motion_baseline = np.mean(baseline_values) + 1e-5
-                # Normalise movement_intensity relative to baseline.  Subtract
-                # baseline so that small movements result in low scores and
-                # scale by three times the baseline to map to [0, 1].
-                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 3.0)
+                # Normalise movement_intensity relative to the baseline.  Subtract
+                # the baseline so that small movements result in low scores and
+                # scale by a larger factor to map to [0, 1].  A higher denominator
+                # dampens the effect of moderate movements and helps prevent
+                # saturating at 100%.  Empirically, a factor of 10 provides
+                # a smoother stress curve without excessive 100% values.
+                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 10.0)
                 score = min(max(norm_intensity, 0.0), 1.0)
 
             # Derive cues based on movement intensity.  Larger differences
@@ -841,11 +868,19 @@ if uploaded_file:
         # Smooth the score with the previous score to avoid rapid swings and
         # to reduce the likelihood of hovering at 100% for long periods.
         score = 0.6 * score + 0.4 * last_score
-        # Blend in the audio‑derived stress.  The audio score is
-        # computed once per video and scaled between 0 and 1.  We
-        # weight it lightly (30%) so that audio cues influence but do
-        # not dominate the overall stress level.
-        score = min(score + 0.3 * audio_score, 1.0)
+        # Blend in the audio‑derived stress.  ``audio_score`` is
+        # computed once per video and lies in [0, 1].  Rather than
+        # incrementing the score each frame, we take a weighted
+        # average to avoid runaway growth.  Adjust ``audio_weight`` to
+        # control how much the audio influences the final stress.
+        # Weight applied to audio‑derived stress.  Lower values reduce the
+        # influence of vocal features on the overall stress score, helping
+        # prevent the score from saturating near 100% when the audio_score
+        # happens to be high.  Adjust this constant as needed for your
+        # recordings.  A value around 0.15 provides a subtle contribution
+        # from audio without overwhelming motion‑based cues.
+        audio_weight = 0.15
+        score = (1 - audio_weight) * score + audio_weight * audio_score
         # Clamp to [0, 1]
         score = max(0.0, min(score, 1.0))
 
@@ -865,24 +900,35 @@ if uploaded_file:
 
         current_second = int(frame_idx / fps)
         cue_text = ", ".join(cues) if cues else ""
+        # Combine visual cues with the global audio cue.  If audio_cue_label is
+        # defined, append it to the cue list for each event.  Ensure there
+        # are no duplicate commas or trailing separators.
+        combined_cues = cue_text
+        if audio_cue_label:
+            if combined_cues:
+                # Avoid adding duplicate audio cue if already present
+                if audio_cue_label not in combined_cues:
+                    combined_cues = f"{combined_cues}, {audio_cue_label}"
+            else:
+                combined_cues = audio_cue_label
         score_delta = abs(score - last_score)
 
         # Log only when stress is high and changes significantly or cues change
         if (
             score > 0.65
             and current_second != last_logged_second
-            and (score_delta >= 0.15 or cue_text != last_logged_cues)
+            and (score_delta >= 0.15 or combined_cues != last_logged_cues)
         ):
             stress_events.append({
                 "time": round(frame_idx / fps, 2),
                 "score": round(score * 100, 2),
-                "cues": cue_text,
+                "cues": combined_cues,
                 "trend": trend
             })
 
             last_logged_second = current_second
             last_score = score
-            last_logged_cues = cue_text
+            last_logged_cues = combined_cues
 
         # Overlay live information on frame.  The black rectangle at the top
         # provides space for stress level, trend, timestamp and current cues.  A
