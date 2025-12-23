@@ -641,6 +641,7 @@ if uploaded_file:
         gray_small = cv2.cvtColor(frame_small, cv2.COLOR_BGR2GRAY)
         rgb_small = cv2.cvtColor(frame_small, cv2.COLOR_BGR2RGB)
 
+        # Reset score and cues for this frame
         score = 0.0
         cues = []
 
@@ -660,6 +661,34 @@ if uploaded_file:
                 cues.append("Hand Fidget")
             elif movement_intensity > 5:
                 cues.append("Facial Tension")
+
+        # Additional cue: face movement (gaze/pose changes)
+        # Detect face using the Haar cascade on the downscaled grayscale frame.  If
+        # a face is detected, compute how far its centre has moved relative to
+        # the previous frame.  Large movements suggest the subject is looking
+        # away from the interviewer or making notable head movements, which we
+        # classify as a "Gaze Shift" cue.  The face movement score is used to
+        # bump the overall stress score.
+        faces = face_cascade.detectMultiScale(gray_small, scaleFactor=1.1, minNeighbors=5)
+        if len(faces) > 0:
+            # Select the largest detected face by area
+            (fx, fy, fw, fh) = max(faces, key=lambda b: b[2] * b[3])
+            # Compute the centre of the face bounding box
+            face_center = (fx + fw / 2.0, fy + fh / 2.0)
+            if prev_face_center is not None:
+                # Euclidean distance between current and previous face centres
+                dist = np.linalg.norm(np.array(face_center) - np.array(prev_face_center))
+                # Normalise the movement by face width to account for scale
+                face_move_norm = dist / max(fw, 1)
+                # When the normalised movement exceeds a small threshold,
+                # register a gaze/pose shift cue and bump the score.
+                if face_move_norm > 0.15:
+                    cues.append("Gaze Shift")
+                    # Incorporate face movement into the stress score.  Scale the
+                    # movement to a [0, 1] range; clamp to 1.0.
+                    score = max(score, min(face_move_norm / 0.5, 1.0))
+            # Update the previous face centre for the next frame
+            prev_face_center = face_center
 
         # Add a small random fluctuation for realism
         score += np.random.uniform(-0.02, 0.02)
