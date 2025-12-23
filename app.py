@@ -600,8 +600,15 @@ if uploaded_file:
     # interpreted as the subject looking off centre ("Gaze Shift").
     prev_face_center = None
 
-    # Variables to determine trend changes
+    # Variables to determine trend changes and smoothing
     last_score = 0.0
+    # Baseline for motion intensity calibration.  We gather motion values
+    # from the first few processed frames and compute an average to
+    # normalise later movement scores.  This helps prevent the stress
+    # score from saturating at 100% on videos with consistent motion.
+    motion_baseline = None
+    baseline_values = []
+    baseline_frames = 30  # number of processed frames to use for baseline
     last_logged_second = -1
     last_logged_cues = ""
 
@@ -650,16 +657,30 @@ if uploaded_file:
             diff = cv2.absdiff(gray_small, prev_gray_small)
             # Calculate average pixel intensity of the difference as a proxy for motion
             movement_intensity = np.mean(diff)
-            # Normalise movement_intensity to [0, 1] range; adjust divisor for sensitivity
-            score = min(max(movement_intensity / 30.0, 0.0), 1.0)
+
+            # Build baseline from the first `baseline_frames` processed frames.  Once
+            # enough frames have been collected, compute the baseline as the mean.
+            if motion_baseline is None and len(baseline_values) < baseline_frames:
+                baseline_values.append(movement_intensity)
+                # Use a provisional divisor during baseline collection to avoid division by zero
+                score = min(max(movement_intensity / 50.0, 0.0), 1.0)
+            else:
+                if motion_baseline is None and baseline_values:
+                    # Compute baseline as average plus a small epsilon
+                    motion_baseline = np.mean(baseline_values) + 1e-5
+                # Normalise movement_intensity relative to baseline.  Subtract
+                # baseline so that small movements result in low scores and
+                # scale by three times the baseline to map to [0, 1].
+                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 3.0)
+                score = min(max(norm_intensity, 0.0), 1.0)
 
             # Derive cues based on movement intensity.  Larger differences
             # correspond to bigger body movements and are labelled accordingly.
-            if movement_intensity > 25:
+            if movement_intensity > (motion_baseline or 0) * 3.5:
                 cues.append("Posture Shift")
-            elif movement_intensity > 15:
+            elif movement_intensity > (motion_baseline or 0) * 2.5:
                 cues.append("Hand Fidget")
-            elif movement_intensity > 5:
+            elif movement_intensity > (motion_baseline or 0) * 1.0:
                 cues.append("Facial Tension")
 
         # Additional cue: face movement (gaze/pose changes)
@@ -700,6 +721,9 @@ if uploaded_file:
 
         # Add a small random fluctuation for realism
         score += np.random.uniform(-0.02, 0.02)
+        # Smooth the score with the previous score to avoid rapid swings and
+        # to reduce the likelihood of hovering at 100% for long periods.
+        score = 0.6 * score + 0.4 * last_score
         score = max(0.0, min(score, 1.0))
 
         nervous_scores.append(round(score * 100, 2))
@@ -782,6 +806,11 @@ if uploaded_file:
                 2,
             )
             y_offset += 20
+
+        # Update last_score after smoothing for next iteration.  This
+        # ensures the smoothing function in the next frame uses the most recent
+        # score rather than the last logged event value.
+        last_score = score
 
         # Draw face, pose and hand landmarks only if requested via the sidebar
         # and when MediaPipe is available.  When any overlay is disabled, skip
