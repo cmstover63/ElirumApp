@@ -9,6 +9,103 @@ import time
 # Additional modules for styling and encoding assets
 import base64  # Used to embed the logo image directly in HTML
 
+# ---------------------------------------------------------------------------
+# Audio feature extraction
+#
+# The functions below implement lightweight audio analysis using the
+# ``librosa`` library.  When a video is uploaded, we call
+# ``extract_audio_features`` once to compute simple descriptors such as
+# average energy, pitch variability and zero‑crossing rate.  These
+# descriptors are then normalised and combined into a single audio stress
+# score via ``compute_audio_stress_score``.  If ``librosa`` isn't
+# installed or the audio cannot be decoded, these functions return
+# ``None`` or zero so that the rest of the application can proceed
+# without audio cues.
+
+def extract_audio_features(video_path: str):
+    """
+    Extract basic audio features from the given video file.
+
+    Parameters
+    ----------
+    video_path : str
+        Absolute path to the uploaded video file.  ``librosa`` will
+        attempt to decode the audio track directly.  If decoding fails
+        or ``librosa`` is unavailable, this function returns ``None``.
+
+    Returns
+    -------
+    dict | None
+        A dictionary containing the mean energy, pitch standard deviation
+        and mean zero‑crossing rate of the audio.  ``None`` if
+        features cannot be extracted.
+    """
+    if librosa is None:
+        return None
+    try:
+        # Load the audio at a lower sample rate to speed up processing.
+        # The ``sr`` of 22050 Hz is commonly used in speech analysis.
+        y, sr = librosa.load(video_path, sr=22050)
+        if y.size == 0:
+            return None
+        # Root‑mean‑square energy gives a measure of overall loudness.
+        rmse = librosa.feature.rms(y=y).flatten()
+        energy_mean = float(np.mean(rmse)) if rmse.size else 0.0
+        # Pitch estimation via the YIN algorithm.  We compute the
+        # fundamental frequency for the entire waveform and then take
+        # the standard deviation as an indicator of variability in
+        # prosody.  Large variations in pitch can be signs of stress.
+        pitches = librosa.yin(y, fmin=75, fmax=400, sr=sr)
+        pitch_std = float(np.std(pitches)) if pitches.size else 0.0
+        # Zero‑crossing rate is the rate at which the signal changes
+        # sign and correlates with tremor or roughness in the voice.
+        zcr = librosa.feature.zero_crossing_rate(y).flatten()
+        zcr_mean = float(np.mean(zcr)) if zcr.size else 0.0
+        return {
+            "energy_mean": energy_mean,
+            "pitch_std": pitch_std,
+            "zcr_mean": zcr_mean,
+        }
+    except Exception:
+        # If decoding fails (e.g. unsupported format) return None
+        return None
+
+
+def compute_audio_stress_score(features: dict | None) -> float:
+    """
+    Convert extracted audio features into a normalised stress score.
+
+    The returned value is in the range [0, 1] and represents the
+    contribution of audio cues to the overall stress level.  Each
+    feature is scaled by a heuristic constant derived from typical
+    speech characteristics.  If ``features`` is ``None``, zero is
+    returned.
+
+    Parameters
+    ----------
+    features : dict | None
+        Output from :func:`extract_audio_features`.
+
+    Returns
+    -------
+    float
+        A value between 0 and 1 representing audio‑derived stress.
+    """
+    if not features:
+        return 0.0
+    # Normalise energy: typical root‑mean‑square energy for clean
+    # conversational speech is ~0.01–0.02.  Scale by 0.05 to cap at 1.
+    energy_norm = min(features.get("energy_mean", 0.0) / 0.05, 1.0)
+    # Normalise pitch variability: typical standard deviation around
+    # 30–50 Hz.  Scale by 50 to cap at 1.
+    pitch_norm = min(features.get("pitch_std", 0.0) / 50.0, 1.0)
+    # Normalise zero‑crossing rate: values between 0.05–0.1 are common
+    # for voiced speech.  Scale by 0.2 to cap at 1.
+    zcr_norm = min(features.get("zcr_mean", 0.0) / 0.2, 1.0)
+    # Combine equally.  You can adjust weights here if certain cues
+    # should contribute more to stress.
+    return (energy_norm + pitch_norm + zcr_norm) / 3.0
+
 # Configure the Streamlit page to use a wide layout and collapse the sidebar.
 st.set_page_config(page_title="Elirum", layout="wide", initial_sidebar_state="collapsed")
 
@@ -29,6 +126,15 @@ try:
         raise AttributeError("mediapipe.solutions missing")
 except (ImportError, AttributeError):
     mp = None
+
+# Attempt to import librosa for audio feature extraction.  If the
+# dependency isn't available (e.g. because it isn't installed in
+# deployment), we'll set ``librosa`` to ``None``.  This allows the
+# application to run without audio‑based cues and prevents import errors.
+try:
+    import librosa  # type: ignore
+except Exception:
+    librosa = None  # type: ignore
 
 # -------------------------
 # LANDMARK MODELS
@@ -527,6 +633,17 @@ if uploaded_file:
     st.subheader("Interview Playback")
     st.video(uploaded_file)
 
+    # ---------------------------------------------------------------------
+    # AUDIO ANALYSIS
+    #
+    # Before we begin frame‑by‑frame processing, extract a few simple
+    # features from the video's audio track.  These values remain
+    # constant throughout the analysis and contribute to the overall
+    # stress score.  If audio decoding fails or librosa isn't
+    # installed, the audio score will be zero.
+    audio_features = extract_audio_features(tfile.name)
+    audio_score = compute_audio_stress_score(audio_features)
+
     cap = cv2.VideoCapture(tfile.name)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
@@ -724,6 +841,12 @@ if uploaded_file:
         # Smooth the score with the previous score to avoid rapid swings and
         # to reduce the likelihood of hovering at 100% for long periods.
         score = 0.6 * score + 0.4 * last_score
+        # Blend in the audio‑derived stress.  The audio score is
+        # computed once per video and scaled between 0 and 1.  We
+        # weight it lightly (30%) so that audio cues influence but do
+        # not dominate the overall stress level.
+        score = min(score + 0.3 * audio_score, 1.0)
+        # Clamp to [0, 1]
         score = max(0.0, min(score, 1.0))
 
         nervous_scores.append(round(score * 100, 2))
