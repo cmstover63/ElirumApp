@@ -676,17 +676,25 @@ if uploaded_file:
             # Compute the centre of the face bounding box
             face_center = (fx + fw / 2.0, fy + fh / 2.0)
             if prev_face_center is not None:
+                # Compute horizontal and vertical shifts separately
+                dx = abs(face_center[0] - prev_face_center[0])
+                dy = abs(face_center[1] - prev_face_center[1])
                 # Euclidean distance between current and previous face centres
                 dist = np.linalg.norm(np.array(face_center) - np.array(prev_face_center))
-                # Normalise the movement by face width to account for scale
+                # Normalise movements by face dimensions to account for scale
                 face_move_norm = dist / max(fw, 1)
-                # When the normalised movement exceeds a small threshold,
+                dx_norm = dx / max(fw, 1)
+                dy_norm = dy / max(fh, 1)
+                # When the normalised horizontal movement exceeds a threshold,
                 # register a gaze/pose shift cue and bump the score.
-                if face_move_norm > 0.15:
+                if face_move_norm > 0.15 or dx_norm > 0.15:
                     cues.append("Gaze Shift")
-                    # Incorporate face movement into the stress score.  Scale the
-                    # movement to a [0, 1] range; clamp to 1.0.
                     score = max(score, min(face_move_norm / 0.5, 1.0))
+                # Additional cue: vertical head movement (head nod).  Large
+                # vertical displacement between frames indicates nodding.
+                if dy_norm > 0.15:
+                    cues.append("Head Nod")
+                    score = max(score, min(dy_norm / 0.5, 1.0))
             # Update the previous face centre for the next frame
             prev_face_center = face_center
 
@@ -823,8 +831,14 @@ if uploaded_file:
                     face_center = (x + w // 2, y + h // 2)
                     if prev_face_center is not None:
                         dx = abs(face_center[0] - prev_face_center[0])
-                        if dx > 0.15 * w:
+                        dy = abs(face_center[1] - prev_face_center[1])
+                        # Normalise by face dimensions
+                        dx_norm = dx / max(w, 1)
+                        dy_norm = dy / max(h, 1)
+                        if dx_norm > 0.15:
                             cues.append("Gaze Shift")
+                        if dy_norm > 0.15:
+                            cues.append("Head Nod")
                     prev_face_center = face_center
                     grid_size = 10
                     for i in range(1, grid_size + 1):
