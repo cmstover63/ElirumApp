@@ -395,11 +395,12 @@ def show_landing_page():
             <div class="overlay">
                 <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" style="height:100px;margin-bottom:1rem;" />
                 <h1>Don't second guess</h1>
-                <h3>Experience the leading AI‑powered system for behavioural and nervousness detection.</h3>
+                <!-- Use standard ASCII hyphens instead of non‑breaking hyphens to avoid PDF encoding errors -->
+                <h3>Experience the leading AI-powered system for behavioural and nervousness detection.</h3>
                 <ul>
-                    <li>AI‑driven facial and body landmark analysis</li>
-                    <li>Real‑time quantification of stress and nervousness</li>
-                    <li>Secure analytics tailored for law‑enforcement professionals</li>
+                    <li>AI-driven facial and body landmark analysis</li>
+                    <li>Real-time quantification of stress and nervousness</li>
+                    <li>Secure analytics tailored for law-enforcement professionals</li>
                 </ul>
             </div>
         """,
