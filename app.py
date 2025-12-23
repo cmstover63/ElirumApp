@@ -269,6 +269,26 @@ def show_landing_page():
                     st.error("Invalid credentials. Please try again.")
         st.stop()
 
+    # If we are not in login mode, inject additional CSS to ensure hero feature
+    # bullet points use standard disc bullets instead of Unicode checkmarks.
+    # This override targets the hero feature list specifically.  It sets
+    # `list-style-type: disc` on the <ul> and removes the pseudo-element
+    # `::before` on the <li> elements that previously added a checkmark glyph.
+    st.markdown(
+        """
+        <style>
+        .hero .overlay ul {
+            list-style-type: disc !important;
+            padding-left: 1.5rem;
+        }
+        .hero .overlay li::before {
+            content: '' !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # Login button on the hero page
     top_login_clicked = st.button("Login", key="landing_enter_button")
     if top_login_clicked:
@@ -321,22 +341,24 @@ def show_landing_page():
             margin-bottom: 1.5rem;
         }}
         .hero .overlay ul {{
-            list-style: none;
-            padding-left: 0;
+            /* Use standard disc bullets for clarity on all devices.  The
+               padding creates space between the bullet and the text. */
+            list-style: disc;
+            padding-left: 1.5rem;
             margin: 0 0 2rem 0;
         }}
         .hero .overlay li {{
             margin-bottom: 0.7rem;
             font-size: 1.15rem;
             position: relative;
-            padding-left: 1.8rem;
+            /* No extra padding; the list-style bullet handles indentation */
+            padding-left: 0;
         }}
+        /* Override the pseudo-element used previously for checkmark icons.  By
+           setting an empty content, we avoid characters like "14" appearing
+           in some fonts. */
         .hero .overlay li::before {{
-            content: "\2714";
-            position: absolute;
-            left: 0;
-            color: {ACCENT_COLOR};
-            font-size: 1.2rem;
+            content: "";
         }}
         /* Style the hero login button. Target only the first Streamlit button
            on the page (the hero login button) so other buttons are unaffected.
