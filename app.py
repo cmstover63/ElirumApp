@@ -854,15 +854,22 @@ if uploaded_file:
                 score = min(max(movement_intensity / 50.0, 0.0), 1.0)
             else:
                 if motion_baseline is None and baseline_values:
-                    # Compute baseline as average plus a small epsilon
+                    # Compute an initial baseline from collected samples.  A small
+                    # epsilon is added to avoid division by zero.
                     motion_baseline = np.mean(baseline_values) + 1e-5
-                # Normalise movement_intensity relative to the baseline.  Subtract
-                # the baseline so that small movements result in low scores and
-                # scale by a larger factor to map to [0, 1].  Using a higher
-                # denominator (15× baseline) further dampens moderate movements
-                # and emphasises true spikes.  This helps avoid the stress
-                # score hovering around 90–100% on relatively stable videos.
-                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 15.0)
+                # Adapt the baseline over time using a weighted moving average.
+                # The ``alpha`` parameter controls how quickly the baseline
+                # responds to new motion values.  A small alpha yields slow
+                # adaptation, emphasising transient spikes relative to the
+                # current baseline rather than saturating the score when
+                # movement is consistently high.
+                alpha = 0.05
+                motion_baseline = (1 - alpha) * motion_baseline + alpha * movement_intensity
+                # Normalise the difference between the current intensity and the
+                # dynamic baseline.  A smaller denominator (6× baseline)
+                # increases sensitivity to spikes while still preventing the
+                # score from saturating under moderate, sustained motion.
+                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 6.0)
                 score = min(max(norm_intensity, 0.0), 1.0)
 
             # Derive cues based on movement intensity.  Larger differences
@@ -929,7 +936,7 @@ if uploaded_file:
         # Reduce the influence of the audio stress on the final score.  A smaller
         # weight prevents the audio score from dominating the visual cues and
         # helps avoid the stress percentage from saturating at high values.
-        audio_weight = 0.1
+        audio_weight = 0.05
         score = (1 - audio_weight) * score + audio_weight * audio_score
         # Clamp to [0, 1]
         score = max(0.0, min(score, 1.0))
