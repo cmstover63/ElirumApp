@@ -566,10 +566,9 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
     for e in stress_events:
         pdf.multi_cell(
             0, 8,
-            f"Time: {e['time']}s | Stress: {e['score']}% ({e['trend']})\n"
-            f"Indicators: {e['cues']}\n"
-            f"Notes: {e.get('notes', '')}"
-        )
+        f"Time: {e['time']}s | Stress: {e['score']}% ({str(e.get('trend','')).replace('\u2011','-')})\n"','')).replace('\u2011','-')})\n"
+        f"Indicators: {str(e.get('cues','')).replace('\u2011','-')}\n"
+        f"Notes: {str(e.get('notes','')).replace('\u2011','-')}"
         pdf.ln(1)
 
     # If audio analysis information is available, add a summary section.  This
