@@ -562,19 +562,20 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Flagged Behavioral Events", ln=True)
 
-       pdf.set_font("Arial", "", 11)
-    for e in stress_events:
-        # Sanitize non‑breaking hyphens so FPDF can encode the text
-        trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
-        cues = str(e.get('cues', '')).replace(chr(0x2011), '-')
-        notes = str(e.get('notes', '')).replace(chr(0x2011), '-')
-        text = (
-            f"Time: {e['time']}s | Stress: {e['score']}% ({trend})\n"
-            f"Indicators: {cues}\n"
-            f"Notes: {notes}"
-        )
-        pdf.multi_cell(0, 8, text)
+      pdf.set_font("Arial", "", 11)
+for e in stress_events:
+    # Sanitize non‑breaking hyphens so FPDF can encode the text
+    trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
+    cues = str(e.get('cues', '')).replace(chr(0x2011), '-')
+    notes = str(e.get('notes', '')).replace(chr(0x2011), '-')
+    text = (
+        f"Time: {e['time']}s | Stress: {e['score']}% ({trend})\n"
+        f"Indicators: {cues}\n"
+        f"Notes: {notes}"
+    )
+    pdf.multi_cell(0, 8, text)
     pdf.ln(1)
+
 
     # If audio analysis information is available, add a summary section.  This
     # section provides the reader with the underlying vocal metrics used to
