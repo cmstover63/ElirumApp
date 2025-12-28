@@ -94,19 +94,14 @@ def compute_audio_stress_score(features: dict | None) -> float:
     if not features:
         return 0.0
     # Normalise energy: typical root‑mean‑square energy for clean
-    # conversational speech is around 0.01–0.02.  Use a larger divisor
-    # (0.10) so that normal energy levels contribute less aggressively
-    # toward the maximum score.  This helps keep the audio score
-    # moderate in realistic recordings.
-    energy_norm = min(features.get("energy_mean", 0.0) / 0.10, 1.0)
+    # conversational speech is ~0.01–0.02.  Scale by 0.05 to cap at 1.
+    energy_norm = min(features.get("energy_mean", 0.0) / 0.05, 1.0)
     # Normalise pitch variability: typical standard deviation around
-    # 30–50 Hz.  Increase the divisor to 80 to reduce the effect of
-    # pitch fluctuations on the overall audio score.
-    pitch_norm = min(features.get("pitch_std", 0.0) / 80.0, 1.0)
+    # 30–50 Hz.  Scale by 50 to cap at 1.
+    pitch_norm = min(features.get("pitch_std", 0.0) / 50.0, 1.0)
     # Normalise zero‑crossing rate: values between 0.05–0.1 are common
-    # for voiced speech.  Increase the divisor to 0.3 to further dampen
-    # the influence of ZCR on the audio stress.
-    zcr_norm = min(features.get("zcr_mean", 0.0) / 0.3, 1.0)
+    # for voiced speech.  Scale by 0.2 to cap at 1.
+    zcr_norm = min(features.get("zcr_mean", 0.0) / 0.2, 1.0)
     # Combine equally.  You can adjust weights here if certain cues
     # should contribute more to stress.
     return (energy_norm + pitch_norm + zcr_norm) / 3.0
@@ -496,7 +491,7 @@ with upload_col:
 # -------------------------
 # PDF GENERATOR
 # -------------------------
-def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio_features: dict | None = None, audio_score: float | None = None) -> str:
+def generate_pdf(user: str, fps: float, stress_events: list, scores: list) -> str:
     """Generate a PDF report summarising the behavioural analysis.
 
     Args:
@@ -538,54 +533,16 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
     pdf.ln(4)
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Flagged Behavioral Events", ln=True)
-        pdf.set_font("Arial", "", 11)
-        for e in stress_events:
-            # Sanitize non-breaking hyphens so FPDF can encode the text
-            trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
-            cues = str(e.get('cues', '')).replace(chr(0x2011), '-')
-            notes = str(e.get('notes', '')).replace(chr(0x2011), '-')
-            text = (
-                f"Time: {e['time']}s | Stress: {e['score']}% ({trend})\n"
-                f"Indicators: {cues}\n"
-                f"Notes: {notes}"
-            )
-            pdf.multi_cell(0, 8, text)
-            pdf.ln(1)
-     )
-        pdf.ln(1)
 
-    # If audio analysis information is available, add a summary section.  This
-    # section provides the reader with the underlying vocal metrics used to
-    # compute the audio stress score and summarises the overall vocal
-    # stress level.  Audio features may be None if extraction failed or
-    # librosa is unavailable.
-    if audio_features is not None:
-        pdf.ln(4)
-        pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 10, "Audio Analysis Summary", ln=True)
-        pdf.set_font("Arial", "", 11)
-        # Extract values or provide placeholders if missing
-        energy = audio_features.get("energy_mean", 0.0) if isinstance(audio_features, dict) else 0.0
-        pitch_std = audio_features.get("pitch_std", 0.0) if isinstance(audio_features, dict) else 0.0
-        zcr = audio_features.get("zcr_mean", 0.0) if isinstance(audio_features, dict) else 0.0
-        score_pct = round((audio_score or 0.0) * 100, 2)
-        audio_label = ""
-        if audio_score is not None:
-            if audio_score >= 0.7:
-                audio_label = "High Vocal Stress"
-            elif audio_score >= 0.4:
-                audio_label = "Moderate Vocal Stress"
-            elif audio_score >= 0.2:
-                audio_label = "Mild Vocal Stress"
-            else:
-                audio_label = "Low Vocal Stress"
+    pdf.set_font("Arial", "", 11)
+    for e in stress_events:
         pdf.multi_cell(
             0, 8,
-            f"Average energy (RMS): {energy:.4f}\n"
-    f"Zero-crossing rate: {zcr:.4f}\n"
-            f"Zero‑crossing rate: {zcr:.4f}\n"
-            f"Audio Stress Score: {score_pct}% ({audio_label})"
+            f"Time: {e['time']}s | Stress: {e['score']}% ({e['trend']})\n"
+            f"Indicators: {e['cues']}\n"
+            f"Notes: {e.get('notes', '')}"
         )
+        pdf.ln(1)
 
     pdf.ln(4)
     pdf.set_font("Arial", "I", 10)
@@ -642,8 +599,6 @@ if uploaded_file:
             fps=fps,
             stress_events=st.session_state.get("stress_events", []),
             scores=st.session_state.get("nervous_scores", []),
-            audio_features=st.session_state.get("audio_features"),
-            audio_score=st.session_state.get("audio_score"),
         )
         with open(pdf_name, "rb") as f:
             st.download_button(
@@ -688,31 +643,6 @@ if uploaded_file:
     # installed, the audio score will be zero.
     audio_features = extract_audio_features(tfile.name)
     audio_score = compute_audio_stress_score(audio_features)
-    # Determine an audio cue label based on the overall audio stress.  This label
-    # will be appended to flagged stress events and reported in the PDF.
-    # High vocal stress corresponds to elevated energy, pitch variability or
-    # zero‑crossing rate.  Moderate indicates some vocal strain, while mild
-    # vocal stress reflects subtle changes.  If the audio score is very low,
-    # no vocal cue will be added.
-    audio_cue_label = None
-    try:
-        if audio_score >= 0.7:
-            audio_cue_label = "High Vocal Stress"
-        elif audio_score >= 0.4:
-            audio_cue_label = "Moderate Vocal Stress"
-        elif audio_score >= 0.2:
-            audio_cue_label = "Mild Vocal Stress"
-        else:
-            audio_cue_label = None
-    except Exception:
-        audio_cue_label = None
-
-    # Persist audio features and score for use in downstream components, such
-    # as generating the PDF report or caching results.  Storing these in
-    # ``st.session_state`` allows other functions to access the values
-    # without recomputing them or passing them through multiple layers.
-    st.session_state["audio_features"] = audio_features
-    st.session_state["audio_score"] = audio_score
 
     cap = cv2.VideoCapture(tfile.name)
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
@@ -795,13 +725,7 @@ if uploaded_file:
     # score from saturating at 100% on videos with consistent motion.
     motion_baseline = None
     baseline_values = []
-    # Number of processed frames used to compute the baseline motion
-    # intensity.  A larger number reduces the impact of early frame
-    # noise and helps avoid saturating the stress score.  The default of
-    # 60 corresponds to roughly two seconds of video at 30fps (with
-    # frame skipping).  Feel free to adjust depending on typical video
-    # length and motion.
-    baseline_frames = 60
+    baseline_frames = 30  # number of processed frames to use for baseline
     last_logged_second = -1
     last_logged_cues = ""
 
@@ -859,22 +783,12 @@ if uploaded_file:
                 score = min(max(movement_intensity / 50.0, 0.0), 1.0)
             else:
                 if motion_baseline is None and baseline_values:
-                    # Compute an initial baseline from collected samples.  A small
-                    # epsilon is added to avoid division by zero.
+                    # Compute baseline as average plus a small epsilon
                     motion_baseline = np.mean(baseline_values) + 1e-5
-                # Adapt the baseline over time using a weighted moving average.
-                # The ``alpha`` parameter controls how quickly the baseline
-                # responds to new motion values.  A small alpha yields slow
-                # adaptation, emphasising transient spikes relative to the
-                # current baseline rather than saturating the score when
-                # movement is consistently high.
-                alpha = 0.05
-                motion_baseline = (1 - alpha) * motion_baseline + alpha * movement_intensity
-                # Normalise the difference between the current intensity and the
-                # dynamic baseline.  A smaller denominator (6× baseline)
-                # increases sensitivity to spikes while still preventing the
-                # score from saturating under moderate, sustained motion.
-                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 6.0)
+                # Normalise movement_intensity relative to baseline.  Subtract
+                # baseline so that small movements result in low scores and
+                # scale by three times the baseline to map to [0, 1].
+                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 3.0)
                 score = min(max(norm_intensity, 0.0), 1.0)
 
             # Derive cues based on movement intensity.  Larger differences
@@ -927,22 +841,11 @@ if uploaded_file:
         # Smooth the score with the previous score to avoid rapid swings and
         # to reduce the likelihood of hovering at 100% for long periods.
         score = 0.6 * score + 0.4 * last_score
-        # Blend in the audio‑derived stress.  ``audio_score`` is
-        # computed once per video and lies in [0, 1].  Rather than
-        # incrementing the score each frame, we take a weighted
-        # average to avoid runaway growth.  Adjust ``audio_weight`` to
-        # control how much the audio influences the final stress.
-        # Weight applied to audio‑derived stress.  Lower values reduce the
-        # influence of vocal features on the overall stress score, helping
-        # prevent the score from saturating near 100% when the audio_score
-        # happens to be high.  Adjust this constant as needed for your
-        # recordings.  A value around 0.15 provides a subtle contribution
-        # from audio without overwhelming motion‑based cues.
-        # Reduce the influence of the audio stress on the final score.  A smaller
-        # weight prevents the audio score from dominating the visual cues and
-        # helps avoid the stress percentage from saturating at high values.
-        audio_weight = 0.05
-        score = (1 - audio_weight) * score + audio_weight * audio_score
+        # Blend in the audio‑derived stress.  The audio score is
+        # computed once per video and scaled between 0 and 1.  We
+        # weight it lightly (30%) so that audio cues influence but do
+        # not dominate the overall stress level.
+        score = min(score + 0.3 * audio_score, 1.0)
         # Clamp to [0, 1]
         score = max(0.0, min(score, 1.0))
 
@@ -962,35 +865,24 @@ if uploaded_file:
 
         current_second = int(frame_idx / fps)
         cue_text = ", ".join(cues) if cues else ""
-        # Combine visual cues with the global audio cue.  If audio_cue_label is
-        # defined, append it to the cue list for each event.  Ensure there
-        # are no duplicate commas or trailing separators.
-        combined_cues = cue_text
-        if audio_cue_label:
-            if combined_cues:
-                # Avoid adding duplicate audio cue if already present
-                if audio_cue_label not in combined_cues:
-                    combined_cues = f"{combined_cues}, {audio_cue_label}"
-            else:
-                combined_cues = audio_cue_label
         score_delta = abs(score - last_score)
 
         # Log only when stress is high and changes significantly or cues change
         if (
             score > 0.65
             and current_second != last_logged_second
-            and (score_delta >= 0.15 or combined_cues != last_logged_cues)
+            and (score_delta >= 0.15 or cue_text != last_logged_cues)
         ):
             stress_events.append({
                 "time": round(frame_idx / fps, 2),
                 "score": round(score * 100, 2),
-                "cues": combined_cues,
+                "cues": cue_text,
                 "trend": trend
             })
 
             last_logged_second = current_second
             last_score = score
-            last_logged_cues = combined_cues
+            last_logged_cues = cue_text
 
         # Overlay live information on frame.  The black rectangle at the top
         # provides space for stress level, trend, timestamp and current cues.  A
@@ -1176,9 +1068,7 @@ if uploaded_file:
         user=st.session_state["user"],
         fps=fps,
         stress_events=stress_events,
-        scores=nervous_scores,
-        audio_features=audio_features,
-        audio_score=audio_score,
+        scores=nervous_scores
     )
 
     # Provide download button for the PDF report
