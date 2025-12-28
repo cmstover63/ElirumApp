@@ -562,14 +562,19 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Flagged Behavioral Events", ln=True)
 
-    pdf.set_font("Arial", "", 11)
+       pdf.set_font("Arial", "", 11)
     for e in stress_events:
-        pdf.multi_cell(
-            0, 8,
-              f"Time: {e['time']}s | Stress: {e['score']}% ({str(e.get('trend', '')).replace('\\u2011', '-')})\n"
-               f"Indicators: {str(e.get('cues', '')).replace('\\u2011', '-')}\n"
-               f"Notes: {str(e.get('notes', '')).replace('\\u2011', '-')}"
-        pdf.ln(1)
+        # Sanitize non‑breaking hyphens so FPDF can encode the text
+        trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
+        cues = str(e.get('cues', '')).replace(chr(0x2011), '-')
+        notes = str(e.get('notes', '')).replace(chr(0x2011), '-')
+        text = (
+            f"Time: {e['time']}s | Stress: {e['score']}% ({trend})\n"
+            f"Indicators: {cues}\n"
+            f"Notes: {notes}"
+        )
+        pdf.multi_cell(0, 8, text)
+    pdf.ln(1)
 
     # If audio analysis information is available, add a summary section.  This
     # section provides the reader with the underlying vocal metrics used to
@@ -597,14 +602,14 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
             else:
                 audio_label = "Low Vocal Stress"
         pdf.multi_cell(
-            0, 8,
-            f"Average energy (RMS): {energy:.4f}\n"
-            f"Pitch variability (std): {pitch_std:.2f} Hz\n"
-            f"Zero‑crossing rate: {zcr:.4f}\n"
-            f"Audio Stress Score: {score_pct}% ({audio_label})"
-        )
-
+        0, 8,
+        f"Average energy (RMS): {energy:.4f}\n"
+        f"Pitch variability (std): {pitch_std:.2f} Hz\n"
+        f"Zero-crossing rate: {zcr:.4f}\n"
+        f"Audio Stress Score: {score_pct}% ({audio_label})"
+    )
     pdf.ln(4)
+
     pdf.set_font("Arial", "I", 10)
     pdf.multi_cell(
         0, 6,
