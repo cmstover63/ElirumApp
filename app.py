@@ -269,26 +269,6 @@ def show_landing_page():
                     st.error("Invalid credentials. Please try again.")
         st.stop()
 
-    # If we are not in login mode, inject additional CSS to ensure hero feature
-    # bullet points use standard disc bullets instead of Unicode checkmarks.
-    # This override targets the hero feature list specifically.  It sets
-    # `list-style-type: disc` on the <ul> and removes the pseudo-element
-    # `::before` on the <li> elements that previously added a checkmark glyph.
-    st.markdown(
-        """
-        <style>
-        .hero .overlay ul {
-            list-style-type: disc !important;
-            padding-left: 1.5rem;
-        }
-        .hero .overlay li::before {
-            content: '' !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
     # Login button on the hero page
     top_login_clicked = st.button("Login", key="landing_enter_button")
     if top_login_clicked:
@@ -341,24 +321,22 @@ def show_landing_page():
             margin-bottom: 1.5rem;
         }}
         .hero .overlay ul {{
-            /* Use standard disc bullets for clarity on all devices.  The
-               padding creates space between the bullet and the text. */
-            list-style: disc;
-            padding-left: 1.5rem;
+            list-style: none;
+            padding-left: 0;
             margin: 0 0 2rem 0;
         }}
         .hero .overlay li {{
             margin-bottom: 0.7rem;
             font-size: 1.15rem;
             position: relative;
-            /* No extra padding; the list-style bullet handles indentation */
-            padding-left: 0;
+            padding-left: 1.8rem;
         }}
-        /* Override the pseudo-element used previously for checkmark icons.  By
-           setting an empty content, we avoid characters like "14" appearing
-           in some fonts. */
         .hero .overlay li::before {{
-            content: "";
+            content: "\2714";
+            position: absolute;
+            left: 0;
+            color: {ACCENT_COLOR};
+            font-size: 1.2rem;
         }}
         /* Style the hero login button. Target only the first Streamlit button
            on the page (the hero login button) so other buttons are unaffected.
@@ -395,12 +373,11 @@ def show_landing_page():
             <div class="overlay">
                 <img src="data:image/png;base64,{logo_data}" alt="Elirum Logo" style="height:100px;margin-bottom:1rem;" />
                 <h1>Don't second guess</h1>
-                <!-- Use standard ASCII hyphens instead of non‑breaking hyphens to avoid PDF encoding errors -->
-                <h3>Experience the leading AI-powered system for behavioural and nervousness detection.</h3>
+                <h3>Experience the leading AI‑powered system for behavioural and nervousness detection.</h3>
                 <ul>
-                    <li>AI-driven facial and body landmark analysis</li>
-                    <li>Real-time quantification of stress and nervousness</li>
-                    <li>Secure analytics tailored for law-enforcement professionals</li>
+                    <li>AI‑driven facial and body landmark analysis</li>
+                    <li>Real‑time quantification of stress and nervousness</li>
+                    <li>Secure analytics tailored for law‑enforcement professionals</li>
                 </ul>
             </div>
         """,
@@ -562,58 +539,60 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Flagged Behavioral Events", ln=True)
 
-     pdf.set_font("Arial", "", 11)
-     for e in stress_events:
-         # Sanitize non‑breaking hyphens so FPDF can encode the text
-         trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
-         cues = str(e.get('cues', '')).replace(chr(0x2011), '-')
-         notes = str(e.get('notes', '')).replace(chr(0x2011), '-')
-         text = (
-             f"Time: {e['time']}s | Stress: {e['score']}% ({trend})\n"
-             f"Indicators: {cues}\n"
-             f"Notes: {notes}"
-         )
-         pdf.multi_cell(0, 8, text)
-         pdf.ln(1)
+    pdf.set_font("Arial", "", 11)
+    for e in stress_events:
+        pdf.multi_cell(
+            0, 8,
+            f"Time: {e['time']}s | Stress: {e['score']}% ({e['trend']})\n"
+            f"Indicators: {e['cues']}\n"
+            f"Notes: {e.get('notes', '')}"
+        )
+        pdf.ln(1)
 
-     # If audio analysis information is available, add a summary section.
-     if audio_features is not None:
-         pdf.ln(4)
-         pdf.set_font("Arial", "B", 14)
-         pdf.cell(0, 10, "Audio Analysis Summary", ln=True)
-         pdf.set_font("Arial", "", 11)
-         energy = audio_features.get("energy_mean", 0.0) if isinstance(audio_features, dict) else 0.0
-         pitch_std = audio_features.get("pitch_std", 0.0) if isinstance(audio_features, dict) else 0.0
-         zcr = audio_features.get("zcr_mean", 0.0) if isinstance(audio_features, dict) else 0.0
-         score_pct = round((audio_score or 0.0) * 100, 2)
-         audio_label = ""
-         if audio_score is not None:
-             if audio_score >= 0.7:
-                 audio_label = "High Vocal Stress"
-             elif audio_score >= 0.4:
-                 audio_label = "Moderate Vocal Stress"
-             elif audio_score >= 0.2:
-                 audio_label = "Mild Vocal Stress"
-             else:
-                 audio_label = "Low Vocal Stress"
-         pdf.multi_cell(
-             0, 8,
-             f"Average energy (RMS): {energy:.4f}\n"
-             f"Pitch variability (std): {pitch_std:.2f} Hz\n"
-             f"Zero-crossing rate: {zcr:.4f}\n"
-             f"Audio Stress Score: {score_pct}% ({audio_label})"
-         )
-         pdf.ln(4)
+    # If audio analysis information is available, add a summary section.  This
+    # section provides the reader with the underlying vocal metrics used to
+    # compute the audio stress score and summarises the overall vocal
+    # stress level.  Audio features may be None if extraction failed or
+    # librosa is unavailable.
+    if audio_features is not None:
+        pdf.ln(4)
+        pdf.set_font("Arial", "B", 14)
+        pdf.cell(0, 10, "Audio Analysis Summary", ln=True)
+        pdf.set_font("Arial", "", 11)
+        # Extract values or provide placeholders if missing
+        energy = audio_features.get("energy_mean", 0.0) if isinstance(audio_features, dict) else 0.0
+        pitch_std = audio_features.get("pitch_std", 0.0) if isinstance(audio_features, dict) else 0.0
+        zcr = audio_features.get("zcr_mean", 0.0) if isinstance(audio_features, dict) else 0.0
+        score_pct = round((audio_score or 0.0) * 100, 2)
+        audio_label = ""
+        if audio_score is not None:
+            if audio_score >= 0.7:
+                audio_label = "High Vocal Stress"
+            elif audio_score >= 0.4:
+                audio_label = "Moderate Vocal Stress"
+            elif audio_score >= 0.2:
+                audio_label = "Mild Vocal Stress"
+            else:
+                audio_label = "Low Vocal Stress"
+        pdf.multi_cell(
+            0, 8,
+            f"Average energy (RMS): {energy:.4f}\n"
+            f"Pitch variability (std): {pitch_std:.2f} Hz\n"
+            f"Zero‑crossing rate: {zcr:.4f}\n"
+            f"Audio Stress Score: {score_pct}% ({audio_label})"
+        )
 
-     pdf.set_font("Arial", "I", 10)
-     pdf.multi_cell(
-         0, 6,
-         "Disclaimer: Elirum provides automated behavioural pattern detection and does not determine deception or intent."
-         " Results must be interpreted by trained professionals in context."
-     )
-     file_name = "Elirum_Analysis_Report.pdf"
-     pdf.output(file_name)
-     return file_name
+    pdf.ln(4)
+    pdf.set_font("Arial", "I", 10)
+    pdf.multi_cell(
+        0, 6,
+        "Disclaimer: Elirum provides automated behavioural pattern detection and does not determine deception or intent."
+        " Results must be interpreted by trained professionals in context."
+    )
+
+    file_name = "Elirum_Analysis_Report.pdf"
+    pdf.output(file_name)
+    return file_name
 
 # -------------------------
 # VIDEO ANALYSIS AND UI
@@ -741,7 +720,7 @@ if uploaded_file:
 
     # Set fixed parameters for processing speed and quality.  The analysis
     # pipeline will process every second frame and downscale the video to
-    # 50 % of its original resolution before running detection.  These
+    # 50 % of its original resolution before running detection.  These
     # constants strike a balance between speed and accuracy without
     # requiring user input.
     FRAME_SKIP = 3  # analyse every 3rd frame
