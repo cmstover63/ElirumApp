@@ -562,65 +562,58 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Flagged Behavioral Events", ln=True)
 
-    pdf.set_font("Arial", "", 11)
-for e in stress_events:
-    # Sanitize non‑breaking hyphens so FPDF can encode the text
-    trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
-    cues = str(e.get('cues', '')).replace(chr(0x2011), '-')
-    notes = str(e.get('notes', '')).replace(chr(0x2011), '-')
-    text = (
-        f"Time: {e['time']}s | Stress: {e['score']}% ({trend})\n"
-        f"Indicators: {cues}\n"
-        f"Notes: {notes}"
-    )
-    pdf.multi_cell(0, 8, text)
-    pdf.ln(1)
+     pdf.set_font("Arial", "", 11)
+     for e in stress_events:
+         # Sanitize non‑breaking hyphens so FPDF can encode the text
+         trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
+         cues = str(e.get('cues', '')).replace(chr(0x2011), '-')
+         notes = str(e.get('notes', '')).replace(chr(0x2011), '-')
+         text = (
+             f"Time: {e['time']}s | Stress: {e['score']}% ({trend})\n"
+             f"Indicators: {cues}\n"
+             f"Notes: {notes}"
+         )
+         pdf.multi_cell(0, 8, text)
+         pdf.ln(1)
 
+     # If audio analysis information is available, add a summary section.
+     if audio_features is not None:
+         pdf.ln(4)
+         pdf.set_font("Arial", "B", 14)
+         pdf.cell(0, 10, "Audio Analysis Summary", ln=True)
+         pdf.set_font("Arial", "", 11)
+         energy = audio_features.get("energy_mean", 0.0) if isinstance(audio_features, dict) else 0.0
+         pitch_std = audio_features.get("pitch_std", 0.0) if isinstance(audio_features, dict) else 0.0
+         zcr = audio_features.get("zcr_mean", 0.0) if isinstance(audio_features, dict) else 0.0
+         score_pct = round((audio_score or 0.0) * 100, 2)
+         audio_label = ""
+         if audio_score is not None:
+             if audio_score >= 0.7:
+                 audio_label = "High Vocal Stress"
+             elif audio_score >= 0.4:
+                 audio_label = "Moderate Vocal Stress"
+             elif audio_score >= 0.2:
+                 audio_label = "Mild Vocal Stress"
+             else:
+                 audio_label = "Low Vocal Stress"
+         pdf.multi_cell(
+             0, 8,
+             f"Average energy (RMS): {energy:.4f}\n"
+             f"Pitch variability (std): {pitch_std:.2f} Hz\n"
+             f"Zero-crossing rate: {zcr:.4f}\n"
+             f"Audio Stress Score: {score_pct}% ({audio_label})"
+         )
+         pdf.ln(4)
 
-    # If audio analysis information is available, add a summary section.  This
-    # section provides the reader with the underlying vocal metrics used to
-    # compute the audio stress score and summarises the overall vocal
-    # stress level.  Audio features may be None if extraction failed or
-    # librosa is unavailable.
-    if audio_features is not None:
-        pdf.ln(4)
-        pdf.set_font("Arial", "B", 14)
-        pdf.cell(0, 10, "Audio Analysis Summary", ln=True)
-        pdf.set_font("Arial", "", 11)
-        # Extract values or provide placeholders if missing
-        energy = audio_features.get("energy_mean", 0.0) if isinstance(audio_features, dict) else 0.0
-        pitch_std = audio_features.get("pitch_std", 0.0) if isinstance(audio_features, dict) else 0.0
-        zcr = audio_features.get("zcr_mean", 0.0) if isinstance(audio_features, dict) else 0.0
-        score_pct = round((audio_score or 0.0) * 100, 2)
-        audio_label = ""
-        if audio_score is not None:
-            if audio_score >= 0.7:
-                audio_label = "High Vocal Stress"
-            elif audio_score >= 0.4:
-                audio_label = "Moderate Vocal Stress"
-            elif audio_score >= 0.2:
-                audio_label = "Mild Vocal Stress"
-            else:
-                audio_label = "Low Vocal Stress"
-        pdf.multi_cell(
-        0, 8,
-        f"Average energy (RMS): {energy:.4f}\n"
-        f"Pitch variability (std): {pitch_std:.2f} Hz\n"
-        f"Zero-crossing rate: {zcr:.4f}\n"
-        f"Audio Stress Score: {score_pct}% ({audio_label})"
-    )
-    pdf.ln(4)
-
-    pdf.set_font("Arial", "I", 10)
-    pdf.multi_cell(
-        0, 6,
-        "Disclaimer: Elirum provides automated behavioural pattern detection and does not determine deception or intent."
-        " Results must be interpreted by trained professionals in context."
-    )
-
-    file_name = "Elirum_Analysis_Report.pdf"
-    pdf.output(file_name)
-    return file_name
+     pdf.set_font("Arial", "I", 10)
+     pdf.multi_cell(
+         0, 6,
+         "Disclaimer: Elirum provides automated behavioural pattern detection and does not determine deception or intent."
+         " Results must be interpreted by trained professionals in context."
+     )
+     file_name = "Elirum_Analysis_Report.pdf"
+     pdf.output(file_name)
+     return file_name
 
 # -------------------------
 # VIDEO ANALYSIS AND UI
