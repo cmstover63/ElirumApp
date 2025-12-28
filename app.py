@@ -562,7 +562,7 @@ def generate_pdf(user: str, fps: float, stress_events: list, scores: list, audio
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Flagged Behavioral Events", ln=True)
 
-      pdf.set_font("Arial", "", 11)
+    pdf.set_font("Arial", "", 11)
 for e in stress_events:
     # Sanitize non‑breaking hyphens so FPDF can encode the text
     trend = str(e.get('trend', '')).replace(chr(0x2011), '-')
