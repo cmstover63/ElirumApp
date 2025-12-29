@@ -781,8 +781,7 @@ if uploaded_file:
                 baseline_values.append(movement_intensity)
                 # Use a provisional divisor during baseline collection to avoid division by zero
                 provisional_divisor = np.mean(baseline_values) + 1e-5
-                    score = min(max(movement_intensity / 50.0, 0.0), 1.0)
-                
+                       score = min(max(movement_intensity / 50.0, 0.0), 1.0)
             else:
                 if motion_baseline is None and baseline_values:
                     motion_baseline = np.mean(baseline_values) + 1e-5
@@ -835,18 +834,10 @@ if uploaded_file:
                     cues.append("Head Nod")
                     score = max(score, min(dy_norm / 0.5, 1.0))
             # Update the previous face centre for the next frame
-            prev_face_center = face_center
-
-        # Add a small random fluctuation for realism
-        score += np.random.uniform(-0.02, 0.02)
-        # Smooth the score with the previous score to avoid rapid swings and
+                    # Clamp the score to [0, 1]
         # to reduce the likelihood of hovering at 100% for long periods.
         score = 0.6 * score + 0.4 * last_score
-        # Blend in the audio‑derived stress.  The audio score is
-        # computed once per video and scaled between 0 and 1.  We
-        # weight it lightly (30%) so that audio cues influence but do
-        # not dominate the overscorscore
-             score = min(score, 1.0)
+        # Clamp the score to [0, 1].
         score = max(0.0, min(score, 1.0))
 
         nervous_scores.append(round(score * 100, 2))
