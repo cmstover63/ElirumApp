@@ -785,11 +785,11 @@ if uploaded_file:
                 
             else:
                 if motion_baseline is None and baseline_values:
-                motion_baseline = np.mean(baseline_values) + 1e-5
-            # Normalise movement_intensity relative to the baseline. Subtract the baseline so that small movements result in low scores,
-            # and scale by five times the baseline to map to [0, 1].
-            norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 5.0)
-            score = min(max(norm_intensity, 0.0), 1.0)
+                    motion_baseline = np.mean(baseline_values) + 1e-5
+                # Normalise movement_intensity relative to the baseline. Subtract the baseline so that small movements result in low scores,
+                # and scale by five times the baseline to map to [0, 1].
+                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 5.0)
+                score = min(max(norm_intensity, 0.0), 1.0)
 
 
             # Derive cues based on movement intensity.  Larger differences
