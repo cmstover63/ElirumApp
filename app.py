@@ -725,7 +725,7 @@ if uploaded_file:
     # score from saturating at 100% on videos with consistent motion.
     motion_baseline = None
     baseline_values = []
-    baseline_frames = 120  # number of processed frames to use for baseline
+    baseline_frames = 30  # number of processed frames to use for baseline
     last_logged_second = -1
     last_logged_cues = ""
 
@@ -781,14 +781,14 @@ if uploaded_file:
                 baseline_values.append(movement_intensity)
                 # Use a provisional divisor during baseline collection to avoid division by zero
                 provisional_divisor = np.mean(baseline_values) + 1e-5
-                score = min(max(movement_intensity / (provisional_divisor * 10.0), 0.0), 1.0)
+                    score = min(max(movement_intensity / 50.0, 0.0), 1.0)
                 
             else:
                 if motion_baseline is None and baseline_values:
                     motion_baseline = np.mean(baseline_values) + 1e-5
                 # Normalise movement_intensity relative to the baseline. Subtract the baseline so that small movements result in low scores,
                 # and scale by five times the baseline to map to [0, 1].
-                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 10.0)
+                norm_intensity = (movement_intensity - motion_baseline) / (motion_baseline * 3.0)
                 score = min(max(norm_intensity, 0.0), 1.0)
 
 
@@ -845,9 +845,8 @@ if uploaded_file:
         # Blend in the audio‑derived stress.  The audio score is
         # computed once per video and scaled between 0 and 1.  We
         # weight it lightly (30%) so that audio cues influence but do
-        # not dominate the overall stress level.
-        score = min(score + 0.1 * audio_score, 1.0)
-        # Clamp to [0, 1]
+        # not dominate the overscorscore
+             score = min(score, 1.0)
         score = max(0.0, min(score, 1.0))
 
         nervous_scores.append(round(score * 100, 2))
