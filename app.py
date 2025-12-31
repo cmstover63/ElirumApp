@@ -24,6 +24,7 @@ import base64  # Used to embed the logo image directly in HTML
 
 def extract_audio_features(video_path: str):
     """
+ 
     Extract basic audio features from the given video file.
 
     Parameters
