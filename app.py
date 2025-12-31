@@ -834,12 +834,11 @@ if uploaded_file:
                     cues.append("Head Nod")
                     score = max(score, min(dy_norm / 0.5, 1.0))
             # Update the previous face centre for the next frame
-                    # Clamp the score to [0, 1]
-        # to reduce the likelihood of hovering at 100% for long periods.
         score = 0.6 * score + 0.4 * last_score
-        # Clamp the score to [0, 1].
         score = max(0.0, min(score, 1.0))
-
+        #  Smooth and clamp the score once per frame
+        score = 0.6 * score + 0.4 * last_score
+        score = max(0.0, min(score, 1.0))
         nervous_scores.append(round(score * 100, 2))
         # Record the timestamp for this processed frame.  Dividing by fps
         # converts the current frame index into seconds.  Even though
